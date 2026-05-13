@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -263,7 +264,7 @@ canvas.elec-chart{width:100%;display:block;}
 <!-- ===== 總覽 ===== -->
 <div id="sec-overview" class="sec on">
   <div class="metrics">
-    <div class="mc"><div class="mc-lbl">本月電費</div><div class="mc-val cg" id="ov-power">—</div><div class="mc-sub" id="ov-power-sub">尚未輸入</div></div>
+    <div class="mc"><div class="mc-lbl">上期電費</div><div class="mc-val cg" id="ov-power">—</div><div class="mc-sub" id="ov-power-sub">尚未輸入</div></div>
     <div class="mc"><div class="mc-lbl">庫存品項</div><div class="mc-val cb" id="ov-items">0</div><div class="mc-sub" id="ov-items-sub">原料+成品</div></div>
     <div class="mc"><div class="mc-lbl">本期完成</div><div class="mc-val cg" id="ov-producing" style="font-size:16px;font-weight:700">0 KG</div><div class="mc-sub" id="ov-prod-cycle-sub" style="color:var(--txt3);font-size:10px"></div></div>
     <div class="mc"><div class="mc-lbl">本期出貨</div><div class="mc-val ct" id="ov-shipped" style="font-size:16px;font-weight:700">0 KG</div><div class="mc-sub" id="ov-ship-cycle-sub" style="color:var(--txt3);font-size:10px"></div></div>
@@ -492,7 +493,27 @@ canvas.elec-chart{width:100%;display:block;}
       </div>
     </div>
     <div class="form-group"><label>狀態</label><select id="prod-status"><option>進行中</option><option>完成</option><option>暫停</option></select></div>
-    <div class="form-group"><label>備註</label><textarea id="prod-note" placeholder="備註說明"></textarea></div>
+    <!-- Raw material usage -->
+    <div style="border-top:0.5px solid var(--bdr);padding-top:14px;margin-top:4px">
+      <div style="font-size:12px;color:var(--txt2);font-weight:600;margin-bottom:10px">原料用量</div>
+      <div class="form-row" style="align-items:flex-end">
+        <div class="form-group" style="margin:0"><label>常用原料</label>
+          <select id="prod-raw-picker" style="font-size:14px;padding:10px 12px;border-radius:var(--rad);border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt);width:100%;min-height:46px;-webkit-appearance:none;appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 10px center;padding-right:36px;">
+            <option value="">— 選擇原料 —</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;min-width:90px">
+          <label>用量</label>
+          <div style="display:flex;align-items:center;background:var(--bg2);border:0.5px solid var(--bdr2);border-radius:var(--rad);overflow:hidden;">
+            <input type="number" id="prod-raw-qty" placeholder="0" style="flex:1;font-size:14px;padding:10px 8px;border:none;background:transparent;color:var(--txt);outline:none;min-height:46px;width:60px;">
+            <span style="padding:0 8px;font-size:12px;font-weight:600;color:var(--txt2);border-left:0.5px solid var(--bdr2);height:100%;display:flex;align-items:center;min-height:46px;background:var(--bg3)">KG</span>
+          </div>
+        </div>
+        <button onclick="addRawUsage()" style="padding:0 14px;height:46px;border-radius:var(--rad);border:none;background:var(--info-bg);color:var(--info-txt);font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap">加入</button>
+      </div>
+      <div id="prod-raw-list" style="margin-top:8px"></div>
+    </div>
+    <div class="form-group" style="margin-top:14px"><label>備註</label><textarea id="prod-note" placeholder="備註說明"></textarea></div>
     <button class="btn-full btn-primary" onclick="saveProd()">儲存</button>
     <button class="btn-full btn-secondary" onclick="closeSheet('sheet-prod')">取消</button>
   </div>
@@ -628,6 +649,11 @@ canvas.elec-chart{width:100%;display:block;}
   <div class="sheet">
     <div class="sheet-hd"><h2 id="raw-sh-title">新增原料</h2><button class="close-btn" onclick="closeSheet('sheet-raw')">✕</button></div>
     <input type="hidden" id="raw-eid">
+    <div class="form-group"><label>種類</label>
+      <select id="raw-category">
+        <option>樹脂</option><option>填料</option><option>色料</option><option>添加劑</option><option>其他</option>
+      </select>
+    </div>
     <div class="form-row">
       <div class="form-group"><label>品名 *</label><input type="text" id="raw-name" placeholder="品名"></div>
       <div class="form-group"><label>編碼</label><input type="text" id="raw-code" placeholder="編碼"></div>
@@ -780,19 +806,19 @@ async function sbUpsert(table,row){
 }
 
 // Map DB row → local object
-function rowToProd(r){return{id:r.id,name:r.name,code:r.code||'',productId:r.product_id||'',qty:r.qty||0,unit:r.unit||'',start:r.start_date||'',end:r.end_date||'',status:r.status||'進行中',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
+function rowToProd(r){return{id:r.id,name:r.name,code:r.code||'',productId:r.product_id||'',qty:r.qty||0,unit:r.unit||'',start:r.start_date||'',end:r.end_date||'',status:r.status||'進行中',note:r.note||'',rawUsage:r.raw_usage||[],createdAt:r.created_at||new Date().toISOString()};}
 function rowToShip(r){return{id:r.id,customer:r.customer,item:r.item,code:r.code||'',productId:r.product_id||'',qty:r.qty||0,price:r.price||0,amount:r.amount||0,amountTax:r.amount_tax||0,date:r.date||'',status:r.status||'待出貨',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
 function rowToPay(r){return{id:r.id,type:r.type,name:r.name,amount:r.amount||0,date:r.date||'',startDate:r.start_date||'',endDate:r.end_date||'',days:r.days||0,daily:r.daily||0,status:r.status||'待請款',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
-function rowToRaw(r){return{id:r.id,name:r.name,code:r.code||'',unit:r.unit||'',price:r.price||0,qty:r.qty||0,safeQty:r.safe_qty||0};}
+function rowToRaw(r){return{id:r.id,name:r.name,code:r.code||'',unit:r.unit||'',price:r.price||0,qty:r.qty||0,safeQty:r.safe_qty||0,category:r.category||'其他',starred:r.starred||false};}
 function rowToFG(r){return{id:r.id,name:r.name,code:r.code||'',unit:r.unit||'',price:r.price||0,qty:r.qty||0,safeQty:r.safe_qty||0};}
 function rowToCust(r){return{id:r.id,name:r.name,taxId:r.tax_id||'',code:r.code||'',contact:r.contact||'',tel:r.tel||'',mobile:r.mobile||'',email:r.email||'',addr:r.addr||'',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
 function rowToEmp(r){return{id:r.id,name:r.name,code:r.code||'',tel:r.tel||'',daily:r.daily||0,note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
 
 // Map local → DB row
-function prodToRow(p){return{id:p.id,name:p.name,code:p.code||null,product_id:p.productId||null,qty:p.qty,unit:p.unit,start_date:p.start||null,end_date:p.end||null,status:p.status,note:p.note||null,created_at:p.createdAt};}
+function prodToRow(p){return{id:p.id,name:p.name,code:p.code||null,product_id:p.productId||null,qty:p.qty,unit:p.unit,start_date:p.start||null,end_date:p.end||null,status:p.status,note:p.note||null,raw_usage:p.rawUsage||[],created_at:p.createdAt};}
 function shipToRow(s){return{id:s.id,customer:s.customer,item:s.item,code:s.code||null,product_id:s.productId||null,qty:s.qty,price:s.price||0,amount:s.amount||0,amount_tax:s.amountTax||0,date:s.date||null,status:s.status,note:s.note||null,created_at:s.createdAt};}
 function payToRow(p){return{id:p.id,type:p.type,name:p.name,amount:p.amount,date:p.date||null,start_date:p.startDate||null,end_date:p.endDate||null,days:p.days||0,daily:p.daily||0,status:p.status,note:p.note||null,created_at:p.createdAt};}
-function rawToRow(r){return{id:r.id,name:r.name,code:r.code||null,unit:r.unit||null,price:r.price||0,qty:r.qty||0,safe_qty:r.safeQty||0};}
+function rawToRow(r){return{id:r.id,name:r.name,code:r.code||null,unit:r.unit||null,price:r.price||0,qty:r.qty||0,safe_qty:r.safeQty||0,category:r.category||'其他',starred:r.starred||false};}
 function fgToRow(p){return{id:p.id,name:p.name,code:p.code||null,unit:p.unit||null,price:p.price||0,qty:p.qty||0,safe_qty:p.safeQty||0};}
 function custToRow(c){return{id:c.id,name:c.name,tax_id:c.taxId||null,code:c.code||null,contact:c.contact||null,tel:c.tel||null,mobile:c.mobile||null,email:c.email||null,addr:c.addr||null,note:c.note||null,created_at:c.createdAt};}
 function empToRow(e){return{id:e.id,name:e.name,code:e.code||null,tel:e.tel||null,daily:e.daily||0,note:e.note||null,created_at:e.createdAt};}
@@ -1050,6 +1076,66 @@ function applyShipPicker(){
 }
 
 // ===== PRODUCTION =====
+
+// ===== RAW USAGE IN PRODUCTION =====
+let _prodRawUsage=[];  // [{id, name, qty, unit}]
+
+function populateProdRawPicker(){
+  const sel=document.getElementById('prod-raw-picker');
+  if(!sel)return;
+  sel.innerHTML='<option value="">— 選擇常用原料 —</option>';
+  const starred=S.rawMaterials.filter(r=>r.starred);
+  starred.forEach(r=>{
+    const o=document.createElement('option');
+    o.value=r.id;
+    o.textContent=`${r.name}${r.code?' ['+r.code+']':''} (庫存: ${r.qty} KG)`;
+    sel.appendChild(o);
+  });
+}
+
+function addRawUsage(){
+  const rid=document.getElementById('prod-raw-picker').value;
+  const qty=parseFloat(document.getElementById('prod-raw-qty').value)||0;
+  if(!rid){showToast('請選擇原料');return;}
+  if(!qty||qty<=0){showToast('請輸入用量');return;}
+  const r=S.rawMaterials.find(x=>x.id===rid);if(!r)return;
+  const existing=_prodRawUsage.findIndex(x=>x.id===rid);
+  if(existing>=0){_prodRawUsage[existing].qty+=qty;}
+  else{_prodRawUsage.push({id:rid,name:r.name,qty,unit:'KG'});}
+  document.getElementById('prod-raw-picker').value='';
+  document.getElementById('prod-raw-qty').value='';
+  renderProdRawList();
+}
+
+function removeRawUsage(rid){
+  _prodRawUsage=_prodRawUsage.filter(x=>x.id!==rid);
+  renderProdRawList();
+}
+
+function renderProdRawList(){
+  const el=document.getElementById('prod-raw-list');
+  if(!el)return;
+  if(!_prodRawUsage.length){el.innerHTML='';return;}
+  el.innerHTML=_prodRawUsage.map(r=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg2);border-radius:var(--rad);margin-bottom:4px">
+      <span style="font-size:13px">${r.name}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;font-weight:600;color:var(--warn-txt)">${r.qty} KG</span>
+        <button onclick="removeRawUsage('${r.id}')" style="border:none;background:var(--err-bg);color:var(--err-txt);width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">×</button>
+      </div>
+    </div>`).join('');
+}
+
+function applyRawUsageToInventory(rawUsage){
+  rawUsage.forEach(u=>{
+    const idx=S.rawMaterials.findIndex(r=>r.id===u.id);
+    if(idx>=0){
+      S.rawMaterials[idx].qty=Math.max(0,(S.rawMaterials[idx].qty||0)-u.qty);
+      dbUpsertRaw(S.rawMaterials[idx]);
+    }
+  });
+}
+
 function openProdSheet(id){
   document.getElementById('prod-sh-title').textContent=id?'編輯生產單':'新增生產單';
   document.getElementById('prod-eid').value=id||'';
@@ -1071,7 +1157,8 @@ function openProdSheet(id){
     setDateBtn('prod-start-btn','prod-start-disp','prod-start-val','');
     setDateBtn('prod-end-btn','prod-end-disp','prod-end-val','');
   }
-  populateProdPicker();openSheet('sheet-prod');
+  _prodRawUsage=id&&S.productions.find(x=>x.id===id)?JSON.parse(JSON.stringify(S.productions.find(x=>x.id===id).rawUsage||[]))||[]:[];
+  renderProdRawList();populateProdPicker();populateProdRawPicker();openSheet('sheet-prod');
 }
 function saveProd(){
   const name=document.getElementById('prod-name').value.trim();if(!name)return alert('請輸入品名');
@@ -1083,16 +1170,18 @@ function saveProd(){
   const end=document.getElementById('prod-end-val').value;
   const status=document.getElementById('prod-status').value;
   const note=document.getElementById('prod-note').value.trim();
+  const rawUsage=JSON.parse(JSON.stringify(_prodRawUsage));
   const eid=document.getElementById('prod-eid').value;
   if(eid){
     const idx=S.productions.findIndex(p=>p.id===eid);
     const old=S.productions[idx];
-    if(old.status!=='完成'&&status==='完成')syncProdInv(productId,name,code,qty,unit);
-    S.productions[idx]={...old,name,code,productId,qty,unit,start,end,status,note};
+    const newlyCompleted=old.status!=='完成'&&status==='完成';
+    if(newlyCompleted){syncProdInv(productId,name,code,qty,unit);applyRawUsageToInventory(rawUsage);}
+    S.productions[idx]={...old,name,code,productId,qty,unit,start,end,status,note,rawUsage};
     save();dbUpsertProd(S.productions[idx]);syncAllProducts();
   } else {
-    const item={id:genId(),name,code,productId,qty,unit,start,end,status,note,createdAt:new Date().toISOString()};
-    if(status==='完成')syncProdInv(productId,name,code,qty,unit);
+    const item={id:genId(),name,code,productId,qty,unit,start,end,status,note,rawUsage,createdAt:new Date().toISOString()};
+    if(status==='完成'){syncProdInv(productId,name,code,qty,unit);applyRawUsageToInventory(rawUsage);}
     S.productions.unshift(item);
     save();dbUpsertProd(item);syncAllProducts();
   }closeSheet('sheet-prod');renderSec(curSec);
@@ -1107,6 +1196,16 @@ function syncProdInv(pid,name,code,qty,unit){
 }
 
 // Month-group production render
+
+function billingMonthKey(dateStr){
+  if(!dateStr)return'未排定';
+  const d=new Date(dateStr);
+  if(isNaN(d))return'未排定';
+  let y=d.getFullYear(),m=d.getMonth()+1;
+  if(d.getDate()>=26){m++;if(m>12){m=1;y++;}}
+  return`${y}-${String(m).padStart(2,'0')}`;
+}
+
 function renderProduction(){
   const q=document.getElementById('prod-search').value.toLowerCase();
   const f=document.getElementById('prod-filter').value;
@@ -1125,7 +1224,7 @@ function renderProduction(){
   // Group by month (use start or createdAt)
   const groups={};
   items.forEach(p=>{
-    const dateKey=(p.start||p.createdAt||'').slice(0,7)||'未排定';
+    const dateKey=billingMonthKey(p.start||p.createdAt||'');
     if(!groups[dateKey])groups[dateKey]=[];
     groups[dateKey].push(p);
   });
@@ -1156,7 +1255,7 @@ function renderProduction(){
   }
 
   let html='';
-  const sortedKeys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  const sortedKeys=Object.keys(groups).sort((a,b)=>a.localeCompare(b));
   sortedKeys.forEach((key,gi)=>{
     const its=groups[key];
     const gid=`prod-mg-${gi}`;
@@ -1294,7 +1393,7 @@ function renderShipping(){
 
   const groups={};
   items.forEach(s=>{
-    const key=(s.date||s.createdAt||'').slice(0,7)||'未排定';
+    const key=billingMonthKey(s.date||s.createdAt||'');
     if(!groups[key])groups[key]=[];
     groups[key].push(s);
   });
@@ -1325,7 +1424,7 @@ function renderShipping(){
   }
 
   let html='';
-  const sortedKeys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  const sortedKeys=Object.keys(groups).sort((a,b)=>a.localeCompare(b));
   sortedKeys.forEach((key,gi)=>{
     const its=groups[key];
     const gid=`ship-mg-${gi}`;
@@ -1404,7 +1503,8 @@ function calcWage(){
 function populateWorkerPicker(currentName){
   const sel=document.getElementById('pay-worker-picker');
   sel.innerHTML='<option value="">— 從員工名冊選取 —</option>';
-  S.employees.forEach(e=>{
+  const sorted=[...S.employees].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+  sorted.forEach(e=>{
     const o=document.createElement('option');
     o.value=e.id;
     o.textContent=e.name+(e.code?` [${e.code}]`:'')+(e.daily?` · 日薪 ${e.daily.toLocaleString()}`:''  );
@@ -1525,8 +1625,9 @@ function renderEmpList(){
   const badge=document.getElementById('emp-count-badge');
   if(S.employees.length){badge.style.display='';badge.textContent=S.employees.length+' 人';}
   else badge.style.display='none';
+  const sortedEmps=[...S.employees].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
   if(!S.employees.length){el.innerHTML='<div class="empty" style="padding:16px 0">尚未新增員工</div>';return;}
-  el.innerHTML=S.employees.map(e=>`<div class="list-row">
+  el.innerHTML=sortedEmps.map(e=>`<div class="list-row">
     <div class="list-left">
       <div class="list-name">${e.name}${e.code?` <span class="mono" style="font-size:11px;color:var(--txt3)">[${e.code}]</span>`:''}</div>
       <div class="list-sub">${e.tel||'—'}${e.daily?' · 日薪 '+e.daily.toLocaleString()+' 元':''}</div>
@@ -1570,7 +1671,7 @@ function renderPayment(){
   // ── Level 1: group by year-month ──
   const monthGroups={};
   items.forEach(p=>{
-    const key=(p.date||p.startDate||p.createdAt||'').slice(0,7)||'未排定';
+    const key=billingMonthKey(p.date||p.startDate||p.createdAt||'');
     if(!monthGroups[key])monthGroups[key]=[];
     monthGroups[key].push(p);
   });
@@ -1624,7 +1725,7 @@ function renderPayment(){
 
   let html='';
   let mgIdx=0;
-  const sortedMonths=Object.keys(monthGroups).sort((a,b)=>b.localeCompare(a));
+  const sortedMonths=Object.keys(monthGroups).sort((a,b)=>a.localeCompare(b));
 
   sortedMonths.forEach((mkey)=>{
     const mits=monthGroups[mkey];
@@ -1707,7 +1808,7 @@ function delPay(id){
 function openRawSheet(id){
   document.getElementById('raw-sh-title').textContent=id?'編輯原料':'新增原料';
   document.getElementById('raw-eid').value=id||'';
-  if(id){const r=S.rawMaterials.find(x=>x.id===id);document.getElementById('raw-name').value=r.name;document.getElementById('raw-code').value=r.code||'';document.getElementById('raw-unit').value=r.unit||'';document.getElementById('raw-price').value=r.price||0;document.getElementById('raw-qty').value=r.qty||0;document.getElementById('raw-safe').value=r.safeQty||0;}
+  if(id){const r=S.rawMaterials.find(x=>x.id===id);document.getElementById('raw-name').value=r.name;document.getElementById('raw-code').value=r.code||'';document.getElementById('raw-unit').value=r.unit||'';document.getElementById('raw-price').value=r.price||0;document.getElementById('raw-qty').value=r.qty||0;document.getElementById('raw-safe').value=r.safeQty||0;document.getElementById('raw-category').value=r.category||'其他';}
   else{['raw-name','raw-code','raw-unit'].forEach(x=>document.getElementById(x).value='');['raw-price','raw-qty','raw-safe'].forEach(x=>document.getElementById(x).value='');}
   openSheet('sheet-raw');
 }
@@ -1718,10 +1819,21 @@ function saveRaw(){
   const price=parseFloat(document.getElementById('raw-price').value)||0;
   const qty=parseFloat(document.getElementById('raw-qty').value)||0;
   const safeQty=parseFloat(document.getElementById('raw-safe').value)||0;
+  const category=document.getElementById('raw-category').value||'其他';
   const eid=document.getElementById('raw-eid').value;
-  if(eid){const idx=S.rawMaterials.findIndex(r=>r.id===eid);S.rawMaterials[idx]={...S.rawMaterials[idx],name,code,unit,price,qty,safeQty};save();dbUpsertRaw(S.rawMaterials[idx]);}
-  else{const r={id:genId(),name,code,unit,price,qty,safeQty};S.rawMaterials.push(r);save();dbUpsertRaw(r);}closeSheet('sheet-raw');renderRaw();
+  if(eid){const idx=S.rawMaterials.findIndex(r=>r.id===eid);const starred=S.rawMaterials[idx].starred||false;S.rawMaterials[idx]={...S.rawMaterials[idx],name,code,unit,price,qty,safeQty,category,starred};save();dbUpsertRaw(S.rawMaterials[idx]);}
+  else{const r={id:genId(),name,code,unit,price,qty,safeQty,category,starred:false};S.rawMaterials.push(r);save();dbUpsertRaw(r);}closeSheet('sheet-raw');renderRaw();
 }
+
+// ===== TOGGLE STAR =====
+function toggleStar(id){
+  const idx=S.rawMaterials.findIndex(r=>r.id===id);
+  if(idx<0)return;
+  S.rawMaterials[idx].starred=!S.rawMaterials[idx].starred;
+  save();dbUpsertRaw(S.rawMaterials[idx]);
+  renderRaw();
+}
+
 function renderRaw(){
   const q=document.getElementById('raw-search').value.toLowerCase();
   const f=document.getElementById('raw-filter').value;
@@ -1735,24 +1847,50 @@ function renderRaw(){
   if(lowCount>0){badge.style.display='';badge.textContent=`${lowCount} 項預警`;}else badge.style.display='none';
   const el=document.getElementById('raw-list');
   if(!items.length){el.innerHTML='<div class="empty">暫無原料</div>';return;}
-  el.innerHTML=items.map(r=>{
-    const st=invSt(r.qty,r.safeQty);
-    const code=r.code?`<span class="mono" style="font-size:11px;color:var(--txt3)">${r.code}</span>`:'';
-    return`<div class="list-row">
-      <div class="list-left">
-        <div class="list-name">${r.name} ${code}</div>
-        <div class="list-sub">${barHtml(r.qty,r.safeQty)} ${r.qty} ${r.unit} / 安全庫存 ${r.safeQty}</div>
-      </div>
-      <div class="list-right">
-        ${bdg(st)}
-        <div class="acts" style="margin-top:4px">
-          <button class="ibt edit" onclick="openRawSheet('${r.id}')">${ICON_EDIT}</button>
-          <button class="ibt del" onclick="delRaw('${r.id}')">${ICON_DEL}</button>
+  const CATS=['樹脂','填料','色料','添加劑','其他'];
+  let html='';
+  CATS.forEach((cat,ci)=>{
+    const group=items.filter(r=>(r.category||'其他')===cat);
+    if(!group.length)return;
+    const gid=`raw-cat-${ci}`;
+    const catTotal=group.reduce((a,r)=>a+r.qty,0);
+    html+=`<div class="month-group">
+      <div class="month-hd" onclick="toggleMonth('${gid}',this)">
+        <div class="month-hd-left">
+          <div class="month-label" style="text-transform:none;font-size:12px">${cat}</div>
+          <div class="month-count">${group.length} 項</div>
+        </div>
+        <div class="month-right">
+          <div class="month-subtotal" style="font-size:12px">${catTotal.toLocaleString()} ${group[0]?.unit||''}</div>
+          <svg class="month-chevron open" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
+      <div class="month-body" id="${gid}">${group.map(r=>{
+        const st=invSt(r.qty,r.safeQty);
+        const code=r.code?`<span class="mono" style="font-size:11px;color:var(--txt3)">${r.code}</span>`:'';
+        const starColor=r.starred?'#f5a623':'var(--txt3)';
+        return`<div class="list-row">
+          <div class="list-left">
+            <div class="list-name">${r.name} ${code}</div>
+            <div class="list-sub">${barHtml(r.qty,r.safeQty)} ${r.qty} ${r.unit} / 安全庫存 ${r.safeQty}</div>
+          </div>
+          <div class="list-right">
+            ${bdg(st)}
+            <div class="acts" style="margin-top:4px">
+              <button class="ibt neutral" style="color:${starColor}" onclick="toggleStar('${r.id}')" title="${r.starred?'取消常用':'加入常用'}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="${r.starred?'#f5a623':'none'}" stroke="${starColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </button>
+              <button class="ibt edit" onclick="openRawSheet('${r.id}')">${ICON_EDIT}</button>
+              <button class="ibt del" onclick="delRaw('${r.id}')">${ICON_DEL}</button>
+            </div>
+          </div>
+        </div>`}).join('')}
+      </div>
     </div>`;
-  }).join('');
+  });
+  el.innerHTML=html||'<div class="empty">暫無原料</div>';
 }
+
 function delRaw(id){
   const r=S.rawMaterials.find(x=>x.id===id);
   pendDelType='raw';pendDelId=id;
@@ -1781,11 +1919,12 @@ function saveFG(){
 function renderFG(){
   const q=document.getElementById('fg-search').value.toLowerCase();
   const f=document.getElementById('fg-filter').value;
-  let items=S.products;
+  let items=[...S.products];
   if(f==='正常')items=items.filter(p=>p.qty>0&&p.qty>=p.safeQty);
   else if(f==='低庫存')items=items.filter(p=>p.qty>0&&p.qty<p.safeQty);
   else if(f==='缺貨')items=items.filter(p=>p.qty===0);
   if(q)items=items.filter(p=>p.name.toLowerCase().includes(q)||(p.code||'').toLowerCase().includes(q));
+  items.sort((a,b)=>b.qty-a.qty);
   const lowCount=S.products.filter(p=>p.qty<p.safeQty).length;
   const badge=document.getElementById('fg-warn-badge');
   if(lowCount>0){badge.style.display='';badge.textContent=`${lowCount} 項預警`;}else badge.style.display='none';
@@ -1893,12 +2032,14 @@ function renderElecChart(){
 // ===== OVERVIEW =====
 function renderOverview(){
   const now=new Date();
-  const year=now.getFullYear().toString();
-  const month=String(now.getMonth()+1).padStart(2,'0');
-  const power=(S.powerData[year]||{})[month];
   const cl=cycleLabel();
+  // 上期電費: 上個月的電費
+  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const prevYear=prevDate.getFullYear().toString();
+  const prevMonth=String(prevDate.getMonth()+1).padStart(2,'0');
+  const power=(S.powerData[prevYear]||{})[prevMonth];
   document.getElementById('ov-power').textContent=power?fmt(power):'—';
-  document.getElementById('ov-power-sub').textContent=power?`${now.getMonth()+1}月電費`:'尚未輸入';
+  document.getElementById('ov-power-sub').textContent=power?`${prevDate.getMonth()+1}月電費`:'尚未輸入';
   document.getElementById('ov-items').textContent=S.rawMaterials.length+S.products.length;
   document.getElementById('ov-items-sub').textContent=`原料 ${S.rawMaterials.length} · 成品 ${S.products.length}`;
   const doneThisCycle=S.productions.filter(p=>p.status==='完成'&&isThisMonth(p.createdAt));
