@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -800,8 +801,12 @@ function saveConfig(url,key){
 function sbHeaders(){
   return{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
 }
-async function sbGet(table,select='*'){
-  const r=await fetch(`${SB_URL}/rest/v1/${table}?select=${select}&order=created_at.desc`,{headers:sbHeaders()});
+async function sbGet(table,select='*',order=true){
+  const q=order?`&order=created_at.desc`:'';
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?select=${select}${q}`,{headers:sbHeaders()});
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
   if(!r.ok)throw new Error(await r.text());
   return r.json();
 }
@@ -855,7 +860,7 @@ async function load(){
     const [prods,ships,pays,raws,fgs,custs,emps,pwrArr]=await Promise.all([
       sbGet('productions'),sbGet('shippings'),sbGet('payments'),
       sbGet('raw_materials'),sbGet('products'),sbGet('customers'),
-      sbGet('employees'),sbGet('power_data','data')
+      sbGet('employees'),sbGet('power_data','data',false)
     ]);
     S.productions=prods.map(rowToProd);
     S.shippings=ships.map(rowToShip);
@@ -2227,7 +2232,7 @@ async function syncFromSupabase(){
     const [prods,ships,pays,raws,fgs,custs,emps,pwrArr]=await Promise.all([
       sbGet('productions'),sbGet('shippings'),sbGet('payments'),
       sbGet('raw_materials'),sbGet('products'),sbGet('customers'),
-      sbGet('employees'),sbGet('power_data','data')
+      sbGet('employees'),sbGet('power_data','data',false)
     ]);
     S.productions=prods.map(rowToProd);
     S.shippings=ships.map(rowToShip);
