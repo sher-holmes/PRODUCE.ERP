@@ -2243,10 +2243,10 @@ function renderOverview(){
   const alertEl=document.getElementById('ov-stock-alert');
   if(low>0){alertEl.style.display='flex';document.getElementById('ov-stock-cnt').textContent=low;}else alertEl.style.display='none';
   // recent prod
-  const rp=S.productions.slice(0,4);
+  const rp=[...S.productions].sort((a,b)=>(a.start||a.createdAt||'').localeCompare(b.start||b.createdAt||'')).slice(0,4);
   document.getElementById('ov-prod-list').innerHTML=rp.length?rp.map(p=>`<div class="list-row"><div class="list-left"><div class="list-name">${p.name}${p.code?` <span class="mono" style="font-size:11px;color:var(--txt3)">${p.code}</span>`:''}</div><div class="list-sub">${p.qty} ${p.unit}${p.start?' · '+p.start:''}</div></div><div class="list-right">${bdg(p.status)}</div></div>`).join(''):'<div class="empty">暫無記錄</div>';
   // recent ship
-  const rs=S.shippings.slice(0,4);
+  const rs=[...S.shippings].sort((a,b)=>(a.date||a.createdAt||'').localeCompare(b.date||b.createdAt||'')).slice(0,4);
   document.getElementById('ov-ship-list').innerHTML=rs.length?rs.map(s=>{
     const tax=s.amountTax||Math.round((s.amount||0)*1.05);
     const code=s.code?` <span class="mono" style="font-size:11px;color:var(--txt3)">${s.code}</span>`:'';
