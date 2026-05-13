@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -253,7 +254,20 @@ canvas.elec-chart{width:100%;display:block;}
 
 <div class="topbar">
   <h1 id="page-title">總覽</h1>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="conn-status" style="font-size:11px;color:var(--txt3)">⚪ 未設定</span>
+    <button onclick="openSheet('sheet-settings')" style="border:none;background:none;cursor:pointer;color:var(--txt2);padding:4px;display:flex;align-items:center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
 </div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+  <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#0a84ff;border-radius:50%;animation:spin .8s linear infinite;"></div>
+  <div style="color:#f2f2f7;font-size:14px">載入資料中...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg);}}</style>
 
 <div class="content">
 
@@ -688,6 +702,35 @@ canvas.elec-chart{width:100%;display:block;}
   </div>
 </div>
 
+<!-- Settings Sheet -->
+<div class="sheet-wrap" id="sheet-settings">
+  <div class="sheet">
+    <div class="sheet-hd"><h2>Supabase 設定</h2><button class="close-btn" onclick="closeSheet('sheet-settings')">✕</button></div>
+    <div style="background:var(--info-bg);border-radius:var(--rad);padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--info-txt);line-height:1.6">
+      請先在 Supabase 建立專案，並執行 <code style="font-family:monospace;background:rgba(0,0,0,0.15);padding:1px 5px;border-radius:4px">schema.sql</code>，再填入以下資訊。
+    </div>
+    <div class="form-group">
+      <label>Supabase Project URL</label>
+      <input type="url" id="sb-url-input" placeholder="https://xxxx.supabase.co" style="font-size:13px">
+    </div>
+    <div class="form-group">
+      <label>Anon Public Key</label>
+      <textarea id="sb-key-input" placeholder="eyJh..." style="min-height:90px;font-size:12px;font-family:monospace;word-break:break-all;"></textarea>
+    </div>
+    <div id="settings-status" style="display:none;padding:10px 12px;border-radius:var(--rad);margin-bottom:12px;font-size:13px;"></div>
+    <button class="btn-full btn-primary" onclick="saveAndConnect()">儲存並連線</button>
+    <button class="btn-full btn-secondary" style="margin-top:8px" onclick="testConnection()">測試連線</button>
+    <div style="margin-top:20px;border-top:0.5px solid var(--bdr);padding-top:16px">
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px;font-weight:600">資料同步</div>
+      <button class="btn-full btn-secondary" onclick="syncFromSupabase()">🔄 從 Supabase 重新載入</button>
+    </div>
+    <div style="margin-top:16px;border-top:0.5px solid var(--bdr);padding-top:16px">
+      <div style="font-size:12px;color:var(--err-txt);margin-bottom:8px;font-weight:600">危險操作</div>
+      <button onclick="clearLocalData()" style="width:100%;padding:12px;border-radius:var(--rad);font-size:14px;font-weight:500;cursor:pointer;background:var(--err-bg);color:var(--err-txt);border:0.5px solid rgba(162,45,45,0.3)">清除本機快取</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== CUSTOM CALENDAR ===== -->
 <div class="cal-wrap" id="cal-wrap">
   <div class="cal-box">
@@ -741,9 +784,140 @@ let S={productions:[],shippings:[],payments:[],rawMaterials:[],products:[],power
 let curSec='overview';
 let pendDelType=null,pendDelId=null;
 
-function load(){const d=localStorage.getItem('mfg_erp_v2');if(d)try{S={...S,...JSON.parse(d)};}catch(e){}}
-function save(){localStorage.setItem('mfg_erp_v2',JSON.stringify(S));}
+// ===== SUPABASE CONFIG =====
+let SB_URL='', SB_KEY='';
+let SB_CONNECTED=false;
+
+function loadConfig(){
+  SB_URL=localStorage.getItem('sb_url')||'';
+  SB_KEY=localStorage.getItem('sb_key')||'';
+}
+function saveConfig(url,key){
+  localStorage.setItem('sb_url',url);
+  localStorage.setItem('sb_key',key);
+  SB_URL=url;SB_KEY=key;
+}
+
+function sbHeaders(){
+  return{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
+}
+async function sbGet(table,select='*'){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?select=${select}&order=created_at.desc`,{headers:sbHeaders()});
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+async function sbInsert(table,row){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:sbHeaders(),body:JSON.stringify(row)});
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+async function sbUpdate(table,id,row){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`,{method:'PATCH',headers:sbHeaders(),body:JSON.stringify(row)});
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+async function sbDelete(table,id){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`,{method:'DELETE',headers:sbHeaders()});
+  if(!r.ok)throw new Error(await r.text());
+}
+async function sbUpsert(table,row){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(row)});
+  if(!r.ok)throw new Error(await r.text());
+  return r.json();
+}
+
+// Map DB row → local object
+function rowToProd(r){return{id:r.id,name:r.name,code:r.code||'',productId:r.product_id||'',qty:r.qty||0,unit:r.unit||'',start:r.start_date||'',end:r.end_date||'',status:r.status||'進行中',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
+function rowToShip(r){return{id:r.id,customer:r.customer,item:r.item,code:r.code||'',productId:r.product_id||'',qty:r.qty||0,price:r.price||0,amount:r.amount||0,amountTax:r.amount_tax||0,date:r.date||'',status:r.status||'待出貨',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
+function rowToPay(r){return{id:r.id,type:r.type,name:r.name,amount:r.amount||0,date:r.date||'',startDate:r.start_date||'',endDate:r.end_date||'',days:r.days||0,daily:r.daily||0,status:r.status||'待請款',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
+function rowToRaw(r){return{id:r.id,name:r.name,code:r.code||'',unit:r.unit||'',price:r.price||0,qty:r.qty||0,safeQty:r.safe_qty||0};}
+function rowToFG(r){return{id:r.id,name:r.name,code:r.code||'',unit:r.unit||'',price:r.price||0,qty:r.qty||0,safeQty:r.safe_qty||0};}
+function rowToCust(r){return{id:r.id,name:r.name,taxId:r.tax_id||'',code:r.code||'',contact:r.contact||'',tel:r.tel||'',mobile:r.mobile||'',email:r.email||'',addr:r.addr||'',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
+function rowToEmp(r){return{id:r.id,name:r.name,code:r.code||'',tel:r.tel||'',daily:r.daily||0,note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
+
+// Map local → DB row
+function prodToRow(p){return{id:p.id,name:p.name,code:p.code||null,product_id:p.productId||null,qty:p.qty,unit:p.unit,start_date:p.start||null,end_date:p.end||null,status:p.status,note:p.note||null,created_at:p.createdAt};}
+function shipToRow(s){return{id:s.id,customer:s.customer,item:s.item,code:s.code||null,product_id:s.productId||null,qty:s.qty,price:s.price||0,amount:s.amount||0,amount_tax:s.amountTax||0,date:s.date||null,status:s.status,note:s.note||null,created_at:s.createdAt};}
+function payToRow(p){return{id:p.id,type:p.type,name:p.name,amount:p.amount,date:p.date||null,start_date:p.startDate||null,end_date:p.endDate||null,days:p.days||0,daily:p.daily||0,status:p.status,note:p.note||null,created_at:p.createdAt};}
+function rawToRow(r){return{id:r.id,name:r.name,code:r.code||null,unit:r.unit||null,price:r.price||0,qty:r.qty||0,safe_qty:r.safeQty||0};}
+function fgToRow(p){return{id:p.id,name:p.name,code:p.code||null,unit:p.unit||null,price:p.price||0,qty:p.qty||0,safe_qty:p.safeQty||0};}
+function custToRow(c){return{id:c.id,name:c.name,tax_id:c.taxId||null,code:c.code||null,contact:c.contact||null,tel:c.tel||null,mobile:c.mobile||null,email:c.email||null,addr:c.addr||null,note:c.note||null,created_at:c.createdAt};}
+function empToRow(e){return{id:e.id,name:e.name,code:e.code||null,tel:e.tel||null,daily:e.daily||0,note:e.note||null,created_at:e.createdAt};}
+
+// ===== LOAD FROM SUPABASE =====
+async function load(){
+  // Always load localStorage first as cache
+  const d=localStorage.getItem('mfg_erp_v2');
+  if(d)try{S={...S,...JSON.parse(d)};}catch(e){}
+  loadConfig();
+  if(!SB_URL||!SB_KEY){updateConnStatus(false);return;}
+  showLoading(true);
+  try{
+    const [prods,ships,pays,raws,fgs,custs,emps,pwrArr]=await Promise.all([
+      sbGet('productions'),sbGet('shippings'),sbGet('payments'),
+      sbGet('raw_materials'),sbGet('products'),sbGet('customers'),
+      sbGet('employees'),sbGet('power_data','data')
+    ]);
+    S.productions=prods.map(rowToProd);
+    S.shippings=ships.map(rowToShip);
+    S.payments=pays.map(rowToPay);
+    S.rawMaterials=raws.map(rowToRaw);
+    S.products=fgs.map(rowToFG);
+    S.customers=custs.map(rowToCust);
+    S.employees=emps.map(rowToEmp);
+    S.powerData=(pwrArr[0]?.data)||{};
+    saveLocal();
+    SB_CONNECTED=true;
+    updateConnStatus(true);
+  }catch(e){
+    console.error('Supabase load error:',e);
+    SB_CONNECTED=false;
+    updateConnStatus(false,'連線失敗');
+  }
+  showLoading(false);
+}
+
+// ===== SAVE LOCAL CACHE =====
+function saveLocal(){localStorage.setItem('mfg_erp_v2',JSON.stringify(S));}
+
+// Legacy save() — now saves local + syncs to Supabase if connected
+function save(){saveLocal();}
+
+// ===== SUPABASE SYNC HELPERS =====
+async function dbUpsertProd(p){if(SB_CONNECTED)try{await sbUpsert('productions',prodToRow(p));}catch(e){console.error(e);}}
+async function dbDeleteProd(id){if(SB_CONNECTED)try{await sbDelete('productions',id);}catch(e){console.error(e);}}
+async function dbUpsertShip(s){if(SB_CONNECTED)try{await sbUpsert('shippings',shipToRow(s));}catch(e){console.error(e);}}
+async function dbDeleteShip(id){if(SB_CONNECTED)try{await sbDelete('shippings',id);}catch(e){console.error(e);}}
+async function dbUpsertPay(p){if(SB_CONNECTED)try{await sbUpsert('payments',payToRow(p));}catch(e){console.error(e);}}
+async function dbDeletePay(id){if(SB_CONNECTED)try{await sbDelete('payments',id);}catch(e){console.error(e);}}
+async function dbUpsertRaw(r){if(SB_CONNECTED)try{await sbUpsert('raw_materials',rawToRow(r));}catch(e){console.error(e);}}
+async function dbDeleteRaw(id){if(SB_CONNECTED)try{await sbDelete('raw_materials',id);}catch(e){console.error(e);}}
+async function dbUpsertFG(p){if(SB_CONNECTED)try{await sbUpsert('products',fgToRow(p));}catch(e){console.error(e);}}
+async function dbDeleteFG(id){if(SB_CONNECTED)try{await sbDelete('products',id);}catch(e){console.error(e);}}
+async function dbUpsertCust(c){if(SB_CONNECTED)try{await sbUpsert('customers',custToRow(c));}catch(e){console.error(e);}}
+async function dbDeleteCust(id){if(SB_CONNECTED)try{await sbDelete('customers',id);}catch(e){console.error(e);}}
+async function dbUpsertEmp(e){if(SB_CONNECTED)try{await sbUpsert('employees',empToRow(e));}catch(e){console.error(e);}}
+async function dbDeleteEmp(id){if(SB_CONNECTED)try{await sbDelete('employees',id);}catch(e){console.error(e);}}
+async function dbSavePower(){if(SB_CONNECTED)try{await sbUpsert('power_data',{id:'singleton',data:S.powerData});}catch(e){console.error(e);}}
+
+// Also sync products when changed by production/shipping
+async function dbSyncProduct(p){if(SB_CONNECTED)try{await sbUpsert('products',fgToRow(p));}catch(e){console.error(e);}}
+function syncAllProducts(){S.products.forEach(p=>dbSyncProduct(p));}
+
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
+
+// ===== UI HELPERS =====
+function updateConnStatus(ok, msg=''){
+  const el=document.getElementById('conn-status');
+  if(!el)return;
+  if(!SB_URL){el.textContent='⚪ 未設定';el.style.color='var(--txt3)';return;}
+  if(ok){el.textContent='🟢 已連線';el.style.color='var(--ok-txt)';}
+  else{el.textContent=msg?'🔴 '+msg:'🔴 離線';el.style.color='var(--err-txt)';}
+}
+function showLoading(show){
+  const el=document.getElementById('loading-overlay');
+  if(el)el.style.display=show?'flex':'none';
+}
 // 本月週期定義：上月26日 ～ 本月25日
 function getCurrentCycle(){
   const now=new Date();
@@ -975,12 +1149,13 @@ function saveProd(){
     const old=S.productions[idx];
     if(old.status!=='完成'&&status==='完成')syncProdInv(productId,name,code,qty,unit);
     S.productions[idx]={...old,name,code,productId,qty,unit,start,end,status,note};
+    save();dbUpsertProd(S.productions[idx]);syncAllProducts();
   } else {
     const item={id:genId(),name,code,productId,qty,unit,start,end,status,note,createdAt:new Date().toISOString()};
     if(status==='完成')syncProdInv(productId,name,code,qty,unit);
     S.productions.unshift(item);
-  }
-  save();closeSheet('sheet-prod');renderSec(curSec);
+    save();dbUpsertProd(item);syncAllProducts();
+  }closeSheet('sheet-prod');renderSec(curSec);
 }
 function syncProdInv(pid,name,code,qty,unit){
   let idx=-1;
@@ -1146,12 +1321,13 @@ function saveShip(){
     const old=S.shippings[idx];
     if(old.status!=='已出貨'&&status==='已出貨')deductInv(productId,item,code,qty);
     S.shippings[idx]={...old,customer,item,code,productId,qty,price,amount,amountTax,date,status,note};
+    save();dbUpsertShip(S.shippings[idx]);syncAllProducts();
   } else {
     const s={id:genId(),customer,item,code,productId,qty,price,amount,amountTax,date,status,note,createdAt:new Date().toISOString()};
     if(status==='已出貨')deductInv(productId,item,code,qty);
     S.shippings.unshift(s);
-  }
-  save();closeSheet('sheet-ship');renderSec(curSec);
+    save();dbUpsertShip(s);syncAllProducts();
+  }closeSheet('sheet-ship');renderSec(curSec);
 }
 function deductInv(pid,name,code,qty){
   let idx=-1;
@@ -1364,9 +1540,8 @@ function savePay(){
   const note=document.getElementById('pay-note').value.trim();
   const eid=document.getElementById('pay-eid').value;
   const obj={type,name,amount,date,startDate,endDate,days,daily,status,note};
-  if(eid){const idx=S.payments.findIndex(p=>p.id===eid);S.payments[idx]={...S.payments[idx],...obj};}
-  else S.payments.unshift({id:genId(),...obj,createdAt:new Date().toISOString()});
-  save();closeSheet('sheet-pay');renderSec(curSec);
+  if(eid){const idx=S.payments.findIndex(p=>p.id===eid);S.payments[idx]={...S.payments[idx],...obj};save();dbUpsertPay(S.payments[idx]);}
+  else{const item={id:genId(),...obj,createdAt:new Date().toISOString()};S.payments.unshift(item);save();dbUpsertPay(item);}closeSheet('sheet-pay');renderSec(curSec);
 }
 
 // ===== EMPLOYEES =====
@@ -1393,9 +1568,8 @@ function saveEmp(){
   const daily=parseFloat(document.getElementById('emp-daily').value)||0;
   const note=document.getElementById('emp-note').value.trim();
   const eid=document.getElementById('emp-eid').value;
-  if(eid){const idx=S.employees.findIndex(e=>e.id===eid);S.employees[idx]={...S.employees[idx],name,code,tel,daily,note};}
-  else S.employees.push({id:genId(),name,code,tel,daily,note,createdAt:new Date().toISOString()});
-  save();closeSheet('sheet-emp');renderEmpList();
+  if(eid){const idx=S.employees.findIndex(e=>e.id===eid);S.employees[idx]={...S.employees[idx],name,code,tel,daily,note};save();dbUpsertEmp(S.employees[idx]);}
+  else{const e={id:genId(),name,code,tel,daily,note,createdAt:new Date().toISOString()};S.employees.push(e);save();dbUpsertEmp(e);}closeSheet('sheet-emp');renderEmpList();
 }
 function toggleEmpPanel(hd){
   const body=document.getElementById('emp-panel-body');
@@ -1605,9 +1779,8 @@ function saveRaw(){
   const qty=parseFloat(document.getElementById('raw-qty').value)||0;
   const safeQty=parseFloat(document.getElementById('raw-safe').value)||0;
   const eid=document.getElementById('raw-eid').value;
-  if(eid){const idx=S.rawMaterials.findIndex(r=>r.id===eid);S.rawMaterials[idx]={...S.rawMaterials[idx],name,code,unit,price,qty,safeQty};}
-  else S.rawMaterials.push({id:genId(),name,code,unit,price,qty,safeQty});
-  save();closeSheet('sheet-raw');renderRaw();
+  if(eid){const idx=S.rawMaterials.findIndex(r=>r.id===eid);S.rawMaterials[idx]={...S.rawMaterials[idx],name,code,unit,price,qty,safeQty};save();dbUpsertRaw(S.rawMaterials[idx]);}
+  else{const r={id:genId(),name,code,unit,price,qty,safeQty};S.rawMaterials.push(r);save();dbUpsertRaw(r);}closeSheet('sheet-raw');renderRaw();
 }
 function renderRaw(){
   const q=document.getElementById('raw-search').value.toLowerCase();
@@ -1662,9 +1835,8 @@ function saveFG(){
   const qty=parseFloat(document.getElementById('fg-qty').value)||0;
   const safeQty=parseFloat(document.getElementById('fg-safe').value)||0;
   const eid=document.getElementById('fg-eid').value;
-  if(eid){const idx=S.products.findIndex(p=>p.id===eid);S.products[idx]={...S.products[idx],name,code,unit,price,qty,safeQty};}
-  else S.products.push({id:genId(),name,code,unit,price,qty,safeQty});
-  save();closeSheet('sheet-fg');renderFG();
+  if(eid){const idx=S.products.findIndex(p=>p.id===eid);S.products[idx]={...S.products[idx],name,code,unit,price,qty,safeQty};save();dbUpsertFG(S.products[idx]);}
+  else{const p={id:genId(),name,code,unit,price,qty,safeQty};S.products.push(p);save();dbUpsertFG(p);}closeSheet('sheet-fg');renderFG();
 }
 function renderFG(){
   const q=document.getElementById('fg-search').value.toLowerCase();
@@ -1726,7 +1898,7 @@ function saveElec(){
   if(!S.powerData[year])S.powerData[year]={};
   S.powerData[year][month]=val;
   document.getElementById('elec-val').value='';
-  save();renderElecGrid();renderElecChart();renderOverview();
+  save();dbSavePower();renderElecGrid();renderElecChart();renderOverview();
   showToast(`${year}年${month}月電費已儲存`);
 }
 function renderElecGrid(){
@@ -1827,8 +1999,11 @@ function executeDelete(){
   const type=pendDelType,id=pendDelId;
   if(!type){closeConfirm();return;}
   if(type==='markAllPaid'){
+    const ids=S.payments.filter(p=>p.status==='待請款').map(p=>p.id);
     S.payments.forEach(p=>{if(p.status==='待請款')p.status='已付款';});
-    save();closeConfirm();renderSec(curSec);
+    save();
+    ids.forEach(id=>{const p=S.payments.find(x=>x.id===id);if(p)dbUpsertPay(p);});
+    closeConfirm();renderSec(curSec);
     showToast('所有待請款已標為已付款');
     return;
   }
@@ -1840,9 +2015,10 @@ function executeDelete(){
       if(item.productId)idx=S.products.findIndex(p=>p.id===item.productId);
       if(idx<0&&item.code)idx=S.products.findIndex(p=>p.code&&p.code.toLowerCase()===item.code.toLowerCase());
       if(idx<0)idx=S.products.findIndex(p=>p.name.toLowerCase()===item.name.toLowerCase());
-      if(idx>=0)S.products[idx].qty=Math.max(0,(S.products[idx].qty||0)-item.qty);
+      if(idx>=0){S.products[idx].qty=Math.max(0,(S.products[idx].qty||0)-item.qty);dbSyncProduct(S.products[idx]);}
     }
     S.productions=S.productions.filter(p=>p.id!==id);
+    save();dbDeleteProd(id);
   } else if(type==='shipping'){
     const item=S.shippings.find(s=>s.id===id);
     if(item&&item.status==='已出貨'){
@@ -1850,23 +2026,21 @@ function executeDelete(){
       if(item.productId)idx=S.products.findIndex(p=>p.id===item.productId);
       if(idx<0&&item.code)idx=S.products.findIndex(p=>p.code&&p.code.toLowerCase()===item.code.toLowerCase());
       if(idx<0)idx=S.products.findIndex(p=>p.name.toLowerCase()===item.item.toLowerCase());
-      if(idx>=0)S.products[idx].qty=(S.products[idx].qty||0)+item.qty;
+      if(idx>=0){S.products[idx].qty=(S.products[idx].qty||0)+item.qty;dbSyncProduct(S.products[idx]);}
     }
     S.shippings=S.shippings.filter(s=>s.id!==id);
-  } else if(type==='payment'){S.payments=S.payments.filter(p=>p.id!==id);}
-  else if(type==='raw'){S.rawMaterials=S.rawMaterials.filter(r=>r.id!==id);}
+    save();dbDeleteShip(id);
+  } else if(type==='payment'){S.payments=S.payments.filter(p=>p.id!==id);save();dbDeletePay(id);}
+  else if(type==='raw'){S.rawMaterials=S.rawMaterials.filter(r=>r.id!==id);save();dbDeleteRaw(id);}
   else if(type==='product'){
     S.productions.forEach(p=>{if(p.productId===id)p.productId='';});
     S.shippings.forEach(s=>{if(s.productId===id)s.productId='';});
     S.products=S.products.filter(p=>p.id!==id);
+    save();dbDeleteFG(id);
   }
-  else if(type==='customer'){
-    S.customers=S.customers.filter(c=>c.id!==id);
-  }
-  else if(type==='employee'){
-    S.employees=S.employees.filter(e=>e.id!==id);
-  }
-  save();closeConfirm();renderSec(curSec);
+  else if(type==='customer'){S.customers=S.customers.filter(c=>c.id!==id);save();dbDeleteCust(id);}
+  else if(type==='employee'){S.employees=S.employees.filter(e=>e.id!==id);save();dbDeleteEmp(id);}
+  closeConfirm();renderSec(curSec);
 }
 
 // ===== CUSTOMERS =====
@@ -1910,10 +2084,11 @@ function saveCust(){
   if(eid){
     const idx=S.customers.findIndex(c=>c.id===eid);
     S.customers[idx]={...S.customers[idx],name,taxId,code,contact,tel,mobile,email,addr,note};
+    save();dbUpsertCust(S.customers[idx]);
   } else {
-    S.customers.unshift({id:genId(),name,taxId,code,contact,tel,mobile,email,addr,note,createdAt:new Date().toISOString()});
-  }
-  save();closeSheet('sheet-cust');renderCustomers();
+    const c={id:genId(),name,taxId,code,contact,tel,mobile,email,addr,note,createdAt:new Date().toISOString()};
+    S.customers.unshift(c);save();dbUpsertCust(c);
+  }closeSheet('sheet-cust');renderCustomers();
 }
 
 function renderCustomers(){
@@ -2015,6 +2190,73 @@ function promptMarkAllPaid(){
   document.getElementById('confirm-wrap').classList.add('open');
 }
 
+// ===== SETTINGS =====
+function showSettingsStatus(msg, ok){
+  const el=document.getElementById('settings-status');
+  el.style.display='';
+  el.textContent=msg;
+  el.style.background=ok?'var(--ok-bg)':'var(--err-bg)';
+  el.style.color=ok?'var(--ok-txt)':'var(--err-txt)';
+}
+async function testConnection(){
+  const url=document.getElementById('sb-url-input').value.trim();
+  const key=document.getElementById('sb-key-input').value.trim();
+  if(!url||!key){showSettingsStatus('請填入 URL 和 Key','');return;}
+  showSettingsStatus('測試中...','');
+  try{
+    const r=await fetch(`${url}/rest/v1/power_data?select=id&limit=1`,{headers:{'apikey':key,'Authorization':'Bearer '+key}});
+    if(r.ok){showSettingsStatus('✅ 連線成功！',true);}
+    else{const t=await r.text();showSettingsStatus('❌ 連線失敗：'+t,false);}
+  }catch(e){showSettingsStatus('❌ 錯誤：'+e.message,false);}
+}
+async function saveAndConnect(){
+  const url=document.getElementById('sb-url-input').value.trim().replace(/\/$/,'');
+  const key=document.getElementById('sb-key-input').value.trim();
+  if(!url||!key){showSettingsStatus('請填入 URL 和 Key','');return;}
+  saveConfig(url,key);
+  showSettingsStatus('儲存成功，載入資料中...','');
+  await syncFromSupabase();
+  if(SB_CONNECTED){
+    showSettingsStatus('✅ 已連線並載入資料',true);
+    setTimeout(()=>closeSheet('sheet-settings'),1200);
+  }
+}
+async function syncFromSupabase(){
+  if(!SB_URL||!SB_KEY){showSettingsStatus('尚未設定 Supabase','');return;}
+  showLoading(true);
+  try{
+    const [prods,ships,pays,raws,fgs,custs,emps,pwrArr]=await Promise.all([
+      sbGet('productions'),sbGet('shippings'),sbGet('payments'),
+      sbGet('raw_materials'),sbGet('products'),sbGet('customers'),
+      sbGet('employees'),sbGet('power_data','data')
+    ]);
+    S.productions=prods.map(rowToProd);
+    S.shippings=ships.map(rowToShip);
+    S.payments=pays.map(rowToPay);
+    S.rawMaterials=raws.map(rowToRaw);
+    S.products=fgs.map(rowToFG);
+    S.customers=custs.map(rowToCust);
+    S.employees=emps.map(rowToEmp);
+    S.powerData=(pwrArr[0]?.data)||{};
+    saveLocal();
+    SB_CONNECTED=true;
+    updateConnStatus(true);
+    renderSec(curSec);
+  }catch(e){
+    SB_CONNECTED=false;
+    updateConnStatus(false,'連線失敗');
+    showSettingsStatus('❌ 載入失敗：'+e.message,false);
+  }
+  showLoading(false);
+}
+function clearLocalData(){
+  if(!confirm('確定清除本機快取？Supabase 資料不受影響。'))return;
+  localStorage.removeItem('mfg_erp_v2');
+  S={productions:[],shippings:[],payments:[],rawMaterials:[],products:[],powerData:{},customers:[],employees:[]};
+  showSettingsStatus('✅ 本機快取已清除',true);
+  renderSec(curSec);
+}
+
 // ===== TOAST =====
 function showToast(msg){
   const t=document.createElement('div');
@@ -2023,10 +2265,17 @@ function showToast(msg){
 }
 
 // ===== INIT =====
-load();
+loadConfig();
+// Pre-fill settings fields
+if(SB_URL)document.getElementById('sb-url-input').value=SB_URL;
+if(SB_KEY)document.getElementById('sb-key-input').value=SB_KEY;
 initElecYears();
+// Load from localStorage immediately for instant render
+const _d=localStorage.getItem('mfg_erp_v2');
+if(_d)try{S={...S,...JSON.parse(_d)};}catch(e){}
 renderOverview();
-// pre-render emp list when needed (handled by renderSec)
+// Then async load from Supabase
+load();
 </script>
 </body>
 </html>
