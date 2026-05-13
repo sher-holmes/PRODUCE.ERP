@@ -4,6 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="製造ERP">
@@ -181,6 +182,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 /* CONFIRM DIALOG */
 .confirm-wrap{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.65);display:none;align-items:center;justify-content:center;padding:24px;}
 .confirm-wrap.open{display:flex;}
+/* SAVE CONFIRM */
+.save-confirm-wrap{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.65);display:none;align-items:flex-end;justify-content:center;}
+.save-confirm-wrap.open{display:flex;}
+.save-confirm-box{background:var(--bg);border-radius:20px 20px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:480px;}
+.save-confirm-title{font-size:17px;font-weight:600;margin-bottom:4px;}
+.save-confirm-sub{font-size:13px;color:var(--txt2);margin-bottom:12px;}
+.save-confirm-rows{border-top:0.5px solid var(--bdr);margin-bottom:16px;}
+.save-confirm-row{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:0.5px solid var(--bdr);font-size:14px;gap:12px;}
+.save-confirm-label{color:var(--txt2);flex-shrink:0;}
+.save-confirm-value{font-weight:500;text-align:right;}
 .confirm-box{background:var(--bg);border-radius:20px;padding:28px 20px 20px;width:100%;max-width:320px;text-align:center;}
 .confirm-icon{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
 .confirm-icon.del{background:var(--err-bg);}
@@ -399,30 +410,20 @@ canvas.elec-chart{width:100%;display:block;}
   </div>
 
   <!-- 電費 -->
-  <div class="panel">
-    <div class="panel-hd">
-      <div class="panel-title">
+  <div class="panel" style="padding-bottom:4px">
+    <div class="month-hd" style="border-bottom:none;padding:0 0 10px" onclick="toggleElecPanel(this)">
+      <div class="month-hd-left" style="gap:8px">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        每月電費
+        <div class="month-label" style="color:var(--txt);font-weight:600;text-transform:none;letter-spacing:0;font-size:13px">每月電費</div>
       </div>
-      <select class="elec-year-sel" id="elec-year" onchange="renderElecGrid()"></select>
+      <div class="month-right">
+        <select class="elec-year-sel" id="elec-year" onclick="event.stopPropagation()" onchange="renderElecGrid()"></select>
+        <svg class="month-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
     </div>
-    <div class="elec-input-wrap">
-      <div class="form-group">
-        <label>月份</label>
-        <select id="elec-month" style="width:100%;font-size:14px;padding:8px 10px;border-radius:var(--rad);border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt);min-height:40px;">
-          <option value="01">一月</option><option value="02">二月</option><option value="03">三月</option><option value="04">四月</option><option value="05">五月</option><option value="06">六月</option><option value="07">七月</option><option value="08">八月</option><option value="09">九月</option><option value="10">十月</option><option value="11">十一月</option><option value="12">十二月</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>金額（元）</label>
-        <input type="number" id="elec-val" placeholder="0" style="width:100%;font-size:14px;padding:8px 10px;border-radius:var(--rad);border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt);min-height:40px;">
-      </div>
-      <button class="btn-add" onclick="saveElec()" style="flex-shrink:0;margin-bottom:0" title="儲存">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      </button>
+    <div class="month-body collapsed" id="elec-panel-body">
+      <div class="elec-grid" id="elec-grid"></div>
     </div>
-    <div class="elec-grid" id="elec-grid"></div>
   </div><!-- /panel elec -->
 </div><!-- /sec-inventory -->
 
@@ -496,20 +497,22 @@ canvas.elec-chart{width:100%;display:block;}
     <!-- Raw material usage -->
     <div style="border-top:0.5px solid var(--bdr);padding-top:14px;margin-top:4px">
       <div style="font-size:12px;color:var(--txt2);font-weight:600;margin-bottom:10px">原料用量</div>
-      <div class="form-row" style="align-items:flex-end">
-        <div class="form-group" style="margin:0"><label>常用原料</label>
-          <select id="prod-raw-picker" style="font-size:14px;padding:10px 12px;border-radius:var(--rad);border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt);width:100%;min-height:46px;-webkit-appearance:none;appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 10px center;padding-right:36px;">
+      <div style="display:flex;gap:8px;align-items:stretch">
+        <div style="flex:1;min-width:0">
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:5px">常用原料</label>
+          <select id="prod-raw-picker" onchange="onRawPickerChange()" style="width:100%;font-size:14px;padding:10px 12px;border-radius:var(--rad);border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt);min-height:46px;-webkit-appearance:none;appearance:none;padding-right:28px;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%238e8e93%22 stroke-width=%222.5%22><polyline points=%226 9 12 15 18 9%22/></svg>');background-repeat:no-repeat;background-position:right 8px center;">
             <option value="">— 選擇原料 —</option>
           </select>
         </div>
-        <div class="form-group" style="margin:0;min-width:90px">
-          <label>用量</label>
-          <div style="display:flex;align-items:center;background:var(--bg2);border:0.5px solid var(--bdr2);border-radius:var(--rad);overflow:hidden;">
-            <input type="number" id="prod-raw-qty" placeholder="0" style="flex:1;font-size:14px;padding:10px 8px;border:none;background:transparent;color:var(--txt);outline:none;min-height:46px;width:60px;">
-            <span style="padding:0 8px;font-size:12px;font-weight:600;color:var(--txt2);border-left:0.5px solid var(--bdr2);height:100%;display:flex;align-items:center;min-height:46px;background:var(--bg3)">KG</span>
+        <div style="width:100px;flex-shrink:0">
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:5px">用量</label>
+          <div style="display:flex;align-items:center;background:var(--bg2);border:0.5px solid var(--bdr2);border-radius:var(--rad);overflow:hidden;height:46px;">
+            <input type="number" id="prod-raw-qty" placeholder="0"
+              style="flex:1;font-size:14px;padding:10px 8px;border:none;background:transparent;color:var(--txt);outline:none;width:0;"
+              onblur="addRawUsageOnBlur()">
+            <span style="padding:0 8px;font-size:11px;font-weight:600;color:var(--txt2);border-left:0.5px solid var(--bdr2);display:flex;align-items:center;height:100%;background:var(--bg3);flex-shrink:0">KG</span>
           </div>
         </div>
-        <button onclick="addRawUsage()" style="padding:0 14px;height:46px;border-radius:var(--rad);border:none;background:var(--info-bg);color:var(--info-txt);font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap">加入</button>
       </div>
       <div id="prod-raw-list" style="margin-top:8px"></div>
     </div>
@@ -718,6 +721,17 @@ canvas.elec-chart{width:100%;display:block;}
 </div>
 
 <!-- Settings Sheet -->
+<!-- ===== SAVE CONFIRM ===== -->
+<div class="save-confirm-wrap" id="save-confirm-wrap">
+  <div class="save-confirm-box">
+    <div class="save-confirm-title" id="sc-title">確認儲存</div>
+    <div class="save-confirm-sub" id="sc-sub"></div>
+    <div class="save-confirm-rows" id="sc-rows"></div>
+    <button class="btn-full btn-primary" id="sc-ok-btn" onclick="executeSave()">確認儲存</button>
+    <button class="btn-full btn-secondary" onclick="closeSaveConfirm()">取消</button>
+  </div>
+</div>
+
 <!-- ===== CUSTOM CALENDAR ===== -->
 <div class="cal-wrap" id="cal-wrap">
   <div class="cal-box">
@@ -763,7 +777,7 @@ canvas.elec-chart{width:100%;display:block;}
 // ===== ICONS =====
 const ICON_EDIT=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const ICON_DEL=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
-const CHEVRON_SVG=`<svg class="month-chevron open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+const CHEVRON_SVG=`<svg class="month-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 const MN=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 
 // ===== STATE =====
@@ -1018,7 +1032,8 @@ function showConfirm({title,msg,warning,type,okLabel}){
   document.getElementById('confirm-title').textContent=title||'確認刪除';
   document.getElementById('confirm-msg').textContent=msg||'此操作無法復原。';
   const w=document.getElementById('confirm-warning');
-  if(warning){w.textContent=warning;w.style.display='';}else{w.style.display='none';}
+  w.textContent=warning||'';
+  w.setAttribute('style',warning?'font-size:13px;color:var(--warn-txt);background:var(--warn-bg);padding:10px 12px;border-radius:var(--rad);margin-bottom:16px;text-align:left;line-height:1.5;display:block;':'display:none;');
   const icon=document.getElementById('confirm-icon');
   icon.className='confirm-icon '+(type||'del');
   const btn=document.getElementById('confirm-ok-btn');
@@ -1042,7 +1057,7 @@ function populateProdPicker(){
   const sel=document.getElementById('prod-picker');
   const cur=document.getElementById('prod-pid').value;
   sel.innerHTML='<option value="">— 手動輸入 —</option>';
-  S.products.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name+(p.code?` [${p.code}]`:'')+` (庫存: ${p.qty} ${p.unit})`;if(p.id===cur)o.selected=true;sel.appendChild(o);});
+  [...S.products].sort((a,b)=>b.qty-a.qty).forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name+(p.code?` [${p.code}]`:'')+` (庫存: ${p.qty} ${p.unit})`;if(p.id===cur)o.selected=true;sel.appendChild(o);});
 }
 function applyProdPicker(){
   const pid=document.getElementById('prod-picker').value;if(!pid)return;
@@ -1056,7 +1071,7 @@ function populateShipPicker(){
   const sel=document.getElementById('ship-picker');
   const cur=document.getElementById('ship-pid').value;
   sel.innerHTML='<option value="">— 手動輸入 —</option>';
-  S.products.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name+(p.code?` [${p.code}]`:'')+` (庫存: ${p.qty} ${p.unit})`;if(p.id===cur)o.selected=true;sel.appendChild(o);});
+  [...S.products].sort((a,b)=>b.qty-a.qty).forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name+(p.code?` [${p.code}]`:'')+` (庫存: ${p.qty} ${p.unit})`;if(p.id===cur)o.selected=true;sel.appendChild(o);});
 }
 function applyShipPicker(){
   const pid=document.getElementById('ship-picker').value;
@@ -1091,6 +1106,19 @@ function populateProdRawPicker(){
     o.textContent=`${r.name}${r.code?' ['+r.code+']':''} (庫存: ${r.qty} KG)`;
     sel.appendChild(o);
   });
+}
+
+function onRawPickerChange(){
+  // Focus qty field when a raw material is selected
+  const rid=document.getElementById('prod-raw-picker').value;
+  if(rid)setTimeout(()=>document.getElementById('prod-raw-qty').focus(),50);
+}
+
+function addRawUsageOnBlur(){
+  const rid=document.getElementById('prod-raw-picker').value;
+  const qty=parseFloat(document.getElementById('prod-raw-qty').value)||0;
+  if(!rid||!qty||qty<=0)return;
+  addRawUsage();
 }
 
 function addRawUsage(){
@@ -1160,6 +1188,29 @@ function openProdSheet(id){
   _prodRawUsage=id&&S.productions.find(x=>x.id===id)?JSON.parse(JSON.stringify(S.productions.find(x=>x.id===id).rawUsage||[]))||[]:[];
   renderProdRawList();populateProdPicker();populateProdRawPicker();openSheet('sheet-prod');
 }
+// ===== SAVE CONFIRM SYSTEM =====
+let _pendingSaveFn=null;
+
+function openSaveConfirmFn({title,sub,rows,fn}){
+  document.getElementById('sc-title').textContent=title;
+  document.getElementById('sc-sub').textContent=sub||'';
+  document.getElementById('sc-sub').style.display=sub?'':'none';
+  document.getElementById('sc-rows').innerHTML=rows.map(r=>
+    `<div class="save-confirm-row"><span class="save-confirm-label">${r.label}</span><span class="save-confirm-value">${r.value}</span></div>`
+  ).join('');
+  _pendingSaveFn=fn;
+  document.getElementById('save-confirm-wrap').classList.add('open');
+}
+function executeSave(){
+  const fn=_pendingSaveFn;
+  closeSaveConfirm();
+  if(typeof fn==='function')fn();
+}
+function closeSaveConfirm(){
+  document.getElementById('save-confirm-wrap').classList.remove('open');
+  _pendingSaveFn=null;
+}
+
 function saveProd(){
   const name=document.getElementById('prod-name').value.trim();if(!name)return alert('請輸入品名');
   const code=document.getElementById('prod-code').value.trim();
@@ -1172,6 +1223,22 @@ function saveProd(){
   const note=document.getElementById('prod-note').value.trim();
   const rawUsage=JSON.parse(JSON.stringify(_prodRawUsage));
   const eid=document.getElementById('prod-eid').value;
+  const rows=[
+    {label:'品名',value:name+(code?` [${code}]`:'')},
+    {label:'數量',value:`${qty} KG`},
+    {label:'狀態',value:status},
+    {label:'日期',value:start?(start+(end?' ～ '+end:'')):'未設定'},
+  ];
+  if(rawUsage.length)rows.push({label:'原料用量',value:rawUsage.map(u=>u.name+' '+u.qty+'KG').join('、')});
+  if(note)rows.push({label:'備註',value:note});
+  openSaveConfirmFn({
+    title:eid?'確認編輯生產單':'確認新增生產單',
+    sub:status==='完成'?'⚠️ 狀態為完成，將同步更新成品及原料庫存':'',
+    rows,
+    fn:()=>_doSaveProd(name,code,productId,qty,unit,start,end,status,note,rawUsage,eid)
+  });
+}
+function _doSaveProd(name,code,productId,qty,unit,start,end,status,note,rawUsage,eid){
   if(eid){
     const idx=S.productions.findIndex(p=>p.id===eid);
     const old=S.productions[idx];
@@ -1184,7 +1251,8 @@ function saveProd(){
     if(status==='完成'){syncProdInv(productId,name,code,qty,unit);applyRawUsageToInventory(rawUsage);}
     S.productions.unshift(item);
     save();dbUpsertProd(item);syncAllProducts();
-  }closeSheet('sheet-prod');renderSec(curSec);
+  }
+  closeSheet('sheet-prod');renderSec(curSec);
 }
 function syncProdInv(pid,name,code,qty,unit){
   let idx=-1;
@@ -1283,15 +1351,32 @@ function renderProduction(){
           ${CHEVRON_SVG}
         </div>
       </div>
-      <div class="month-body" id="${gid}">${its.map(prodRow).join('')}</div>
+      <div class="month-body collapsed" id="${gid}">${its.map(prodRow).join('')}</div>
     </div>`;
   });
   el.innerHTML=html;
 }
 function delProd(id){
   const item=S.productions.find(p=>p.id===id);
+  if(!item)return;
   pendDelType='production';pendDelId=id;
-  showConfirm({title:`刪除生產單：${item?.name}`,msg:'確定要刪除此生產單？此操作無法復原。',warning:item?.status==='完成'?`⚠️ 狀態為「完成」，刪除後將從成品庫存扣回 ${item.qty} ${item.unit}，庫存不足則歸零。`:null,type:'del',okLabel:'確認刪除'});
+  const isDone=(item.status+'').trim()==='完成';
+  const hasRaw=Array.isArray(item.rawUsage)&&item.rawUsage.length>0;
+  let warn=null;
+  if(isDone){
+    warn=`⚠️ 狀態為「完成」，刪除後將從成品庫存扣回 ${item.qty} ${item.unit}`;
+    if(hasRaw)warn+=`，並補回 ${item.rawUsage.length} 項原料庫存（${item.rawUsage.map(u=>u.name+' '+u.qty+'KG').join('、')}）`;
+    warn+=`，庫存不足則歸零。`;
+  } else if(hasRaw){
+    warn=`⚠️ 此生產單有 ${item.rawUsage.length} 項原料用量記錄，但因未完成，原料庫存不受影響。`;
+  }
+  showConfirm({
+    title:`刪除生產單：${item.name}`,
+    msg:'確定要刪除此生產單？此操作無法復原。',
+    warning:warn,
+    type:'del',
+    okLabel:'確認刪除'
+  });
 }
 
 // ===== SHIPPING =====
@@ -1355,6 +1440,25 @@ function saveShip(){
   const status=document.getElementById('ship-status').value;
   const note=document.getElementById('ship-note').value.trim();
   const eid=document.getElementById('ship-eid').value;
+  const rows=[
+    {label:'客戶',value:customer},
+    {label:'品名',value:item+(code?` [${code}]`:'')},
+    {label:'數量',value:`${qty} KG`},
+    {label:'單價',value:fmt(price)},
+    {label:'未稅金額',value:fmt(amount)},
+    {label:'含稅金額',value:fmt(amountTax)},
+    {label:'出貨日期',value:date||'未設定'},
+    {label:'狀態',value:status},
+  ];
+  if(note)rows.push({label:'備註',value:note});
+  openSaveConfirmFn({
+    title:eid?'確認編輯出貨單':'確認新增出貨單',
+    sub:status==='已出貨'?'⚠️ 狀態為已出貨，將從成品庫存扣除數量':'',
+    rows,
+    fn:()=>_doSaveShip(customer,item,code,productId,qty,price,amount,amountTax,date,status,note,eid)
+  });
+}
+function _doSaveShip(customer,item,code,productId,qty,price,amount,amountTax,date,status,note,eid){
   if(eid){
     const idx=S.shippings.findIndex(s=>s.id===eid);
     const old=S.shippings[idx];
@@ -1366,7 +1470,8 @@ function saveShip(){
     if(status==='已出貨')deductInv(productId,item,code,qty);
     S.shippings.unshift(s);
     save();dbUpsertShip(s);syncAllProducts();
-  }closeSheet('sheet-ship');renderSec(curSec);
+  }
+  closeSheet('sheet-ship');renderSec(curSec);
 }
 function deductInv(pid,name,code,qty){
   let idx=-1;
@@ -1454,11 +1559,11 @@ function renderShipping(){
         <div class="month-right" style="flex-direction:column;align-items:flex-end;gap:2px">
           <div style="display:flex;align-items:center;gap:8px">
             <div class="month-subtotal cb">${fmt(monthTaxTotal)} <span style="font-size:10px;font-weight:400;color:var(--txt3)">含稅</span></div>
-            <svg class="month-chevron open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg class="month-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
         </div>
       </div>
-      <div class="month-body" id="${gid}">${its.map(shipRow).join('')}</div>
+      <div class="month-body collapsed" id="${gid}">${its.map(shipRow).join('')}</div>
     </div>`;
   });
   el.innerHTML=html;
@@ -1579,9 +1684,31 @@ function savePay(){
   const status=document.getElementById('pay-status').value;
   const note=document.getElementById('pay-note').value.trim();
   const eid=document.getElementById('pay-eid').value;
+  const rows=[
+    {label:'類型',value:type},
+    {label:type==='薪資'?'工人姓名':'用途',value:name},
+    {label:'金額',value:fmt(amount)},
+    {label:'狀態',value:status},
+  ];
+  if(type==='薪資'&&days){
+    rows.push({label:'工作天數',value:`${days} 天`});
+    rows.push({label:'日薪',value:fmt(daily)});
+    if(startDate)rows.push({label:'日期區間',value:startDate+(endDate?' ～ '+endDate:'')});
+  } else if(date){
+    rows.push({label:'日期',value:date});
+  }
+  if(note)rows.push({label:'備註',value:note});
   const obj={type,name,amount,date,startDate,endDate,days,daily,status,note};
-  if(eid){const idx=S.payments.findIndex(p=>p.id===eid);S.payments[idx]={...S.payments[idx],...obj};save();dbUpsertPay(S.payments[idx]);}
-  else{const item={id:genId(),...obj,createdAt:new Date().toISOString()};S.payments.unshift(item);save();dbUpsertPay(item);}closeSheet('sheet-pay');renderSec(curSec);
+  openSaveConfirmFn({
+    title:eid?'確認編輯請款':'確認新增請款',
+    sub:'',
+    rows,
+    fn:()=>{
+      if(eid){const idx=S.payments.findIndex(p=>p.id===eid);S.payments[idx]={...S.payments[idx],...obj};save();dbUpsertPay(S.payments[idx]);}
+      else{const item={id:genId(),...obj,createdAt:new Date().toISOString()};S.payments.unshift(item);save();dbUpsertPay(item);}
+      closeSheet('sheet-pay');renderSec(curSec);
+    }
+  });
 }
 
 // ===== EMPLOYEES =====
@@ -1773,10 +1900,10 @@ function renderPayment(){
           </div>
           <div class="month-right">
             <div class="month-subtotal" style="font-size:12px">${fmt(intTotal)}</div>
-            <svg class="month-chevron open" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg class="month-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
         </div>
-        <div class="month-body" id="${igid}" style="padding-left:4px">${iits.map(payRow).join('')}</div>
+        <div class="month-body collapsed" id="${igid}" style="padding-left:4px">${iits.map(payRow).join('')}</div>
       </div>`;
     });
 
@@ -1792,7 +1919,7 @@ function renderPayment(){
           ${CHEVRON_SVG}
         </div>
       </div>
-      <div class="month-body" id="${mgid}" style="padding-left:8px">${innerHtml}</div>
+      <div class="month-body collapsed" id="${mgid}" style="padding-left:8px">${innerHtml}</div>
     </div>`;
   });
   el.innerHTML=html;
@@ -1850,7 +1977,10 @@ function renderRaw(){
   const CATS=['樹脂','填料','色料','添加劑','其他'];
   let html='';
   CATS.forEach((cat,ci)=>{
-    const group=items.filter(r=>(r.category||'其他')===cat);
+    const group=items.filter(r=>(r.category||'其他')===cat).sort((a,b)=>{
+      if(b.starred!==a.starred)return b.starred?1:-1;
+      return b.qty-a.qty;
+    });
     if(!group.length)return;
     const gid=`raw-cat-${ci}`;
     const catTotal=group.reduce((a,r)=>a+r.qty,0);
@@ -1862,10 +1992,10 @@ function renderRaw(){
         </div>
         <div class="month-right">
           <div class="month-subtotal" style="font-size:12px">${catTotal.toLocaleString()} ${group[0]?.unit||''}</div>
-          <svg class="month-chevron open" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          <svg class="month-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
-      <div class="month-body" id="${gid}">${group.map(r=>{
+      <div class="month-body collapsed" id="${gid}">${group.map(r=>{
         const st=invSt(r.qty,r.safeQty);
         const code=r.code?`<span class="mono" style="font-size:11px;color:var(--txt3)">${r.code}</span>`:'';
         const starColor=r.starred?'#f5a623':'var(--txt3)';
@@ -1930,7 +2060,8 @@ function renderFG(){
   if(lowCount>0){badge.style.display='';badge.textContent=`${lowCount} 項預警`;}else badge.style.display='none';
   const el=document.getElementById('fg-list');
   if(!items.length){el.innerHTML='<div class="empty">暫無成品</div>';return;}
-  el.innerHTML=items.map(p=>{
+
+  function fgRow(p){
     const st=invSt(p.qty,p.safeQty);
     const code=p.code?`<span class="mono" style="font-size:11px;color:var(--txt3)">${p.code}</span>`:'';
     return`<div class="list-row">
@@ -1946,7 +2077,31 @@ function renderFG(){
         </div>
       </div>
     </div>`;
-  }).join('');
+  }
+
+  const groups=[
+    {label:'有庫存',key:'fg-g0',list:items.filter(p=>p.qty>0)},
+    {label:'缺貨',key:'fg-g1',list:items.filter(p=>p.qty===0)},
+  ];
+  let html='';
+  groups.forEach(g=>{
+    if(!g.list.length)return;
+    const total=g.list.reduce((a,p)=>a+p.qty,0);
+    html+=`<div class="month-group">
+      <div class="month-hd" onclick="toggleMonth('${g.key}',this)">
+        <div class="month-hd-left">
+          <div class="month-label" style="text-transform:none;font-size:12px">${g.label}</div>
+          <div class="month-count">${g.list.length} 項</div>
+        </div>
+        <div class="month-right">
+          <div class="month-subtotal" style="font-size:12px">${total.toLocaleString()} ${g.list[0]?.unit||''}</div>
+          <svg class="month-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <div class="month-body collapsed" id="${g.key}">${g.list.map(fgRow).join('')}</div>
+    </div>`;
+  });
+  el.innerHTML=html;
 }
 function delFG(id){
   const p=S.products.find(x=>x.id===id);
@@ -1967,19 +2122,23 @@ function initElecYears(){
       sel.appendChild(o);
     }
   });
-  document.getElementById('elec-month').value=String(now.getMonth()+1).padStart(2,'0');
 }
-function saveElec(){
-  const year=document.getElementById('elec-year').value;
-  const month=document.getElementById('elec-month').value;
-  const val=parseFloat(document.getElementById('elec-val').value);
-  if(isNaN(val)||val<=0)return alert('請輸入有效電費金額');
+function toggleElecPanel(hd){
+  const body=document.getElementById('elec-panel-body');
+  const chevron=hd.querySelector('.month-chevron');
+  const isOpen=!body.classList.contains('collapsed');
+  body.classList.toggle('collapsed',isOpen);
+  if(chevron)chevron.classList.toggle('open',!isOpen);
+}
+function saveElecMonth(month,val){
+  const year=document.getElementById('elec-year')?.value||new Date().getFullYear().toString();
+  const v=parseFloat(val);
   if(!S.powerData[year])S.powerData[year]={};
-  S.powerData[year][month]=val;
-  document.getElementById('elec-val').value='';
-  save();dbSavePower();renderElecGrid();renderElecChart();renderOverview();
-  showToast(`${year}年${month}月電費已儲存`);
+  if(isNaN(v)||v===0){delete S.powerData[year][month];}
+  else{S.powerData[year][month]=v;}
+  save();dbSavePower();renderElecChart();renderOverview();
 }
+function saveElec(){/* legacy - unused */}
 function renderElecGrid(){
   const year=document.getElementById('elec-year')?.value||new Date().getFullYear().toString();
   const yearData=S.powerData[year]||{};
@@ -1988,12 +2147,39 @@ function renderElecGrid(){
   for(let m=1;m<=12;m++){
     const key=String(m).padStart(2,'0');
     const v=yearData[key];
-    html+=`<div class="elec-cell">
+    html+=`<div class="elec-cell" onclick="openElecInline('${key}')" style="cursor:pointer;position:relative;min-height:58px">
       <div class="elec-month">${monthLabels[m-1]}</div>
-      ${v!=null?`<div class="elec-val">${v.toLocaleString()}<span class="elec-unit">元</span></div>`:`<div style="color:var(--txt3);font-size:13px">—</div>`}
+      ${v!=null?`<div class="elec-val" id="elec-disp-${key}">${v.toLocaleString()}<span class="elec-unit">元</span></div>`:`<div style="color:var(--txt3);font-size:13px" id="elec-disp-${key}">—</div>`}
+      <div id="elec-iw-${key}" style="display:none;position:absolute;inset:0;background:var(--bg2);border-radius:var(--rad);padding:8px;z-index:10;border:1px solid var(--bdr2);" onclick="event.stopPropagation()">
+        <input type="number" id="elec-in-${key}" placeholder="0"
+          style="width:100%;height:100%;font-size:14px;padding:5px 8px;border-radius:4px;border:0.5px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;box-sizing:border-box;"
+          onblur="confirmElecInline('${key}')"
+          onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape')cancelElecInline('${key}')">
+      </div>
     </div>`;
   }
   document.getElementById('elec-grid').innerHTML=html;
+}
+function openElecInline(month){
+  document.querySelectorAll('[id^="elec-iw-"]').forEach(el=>el.style.display='none');
+  const year=document.getElementById('elec-year')?.value||new Date().getFullYear().toString();
+  const wrap=document.getElementById(`elec-iw-${month}`);
+  const input=document.getElementById(`elec-in-${month}`);
+  if(!wrap||!input)return;
+  input.value=(S.powerData[year]||{})[month]||'';
+  wrap.style.display='block';
+  input.focus();input.select();
+}
+function confirmElecInline(month){
+  const input=document.getElementById(`elec-in-${month}`);
+  if(!input)return;
+  saveElecMonth(month,input.value);
+  renderElecGrid();
+  showToast('電費已更新');
+}
+function cancelElecInline(month){
+  const wrap=document.getElementById(`elec-iw-${month}`);
+  if(wrap)wrap.style.display='none';
 }
 function renderElecChart(){
   const year=document.getElementById('dash-elec-year')?.value||new Date().getFullYear().toString();
@@ -2092,11 +2278,19 @@ function executeDelete(){
   if(type==='production'){
     const item=S.productions.find(p=>p.id===id);
     if(item&&item.status==='完成'){
+      // Restore finished goods inventory
       let idx=-1;
       if(item.productId)idx=S.products.findIndex(p=>p.id===item.productId);
       if(idx<0&&item.code)idx=S.products.findIndex(p=>p.code&&p.code.toLowerCase()===item.code.toLowerCase());
       if(idx<0)idx=S.products.findIndex(p=>p.name.toLowerCase()===item.name.toLowerCase());
       if(idx>=0){S.products[idx].qty=Math.max(0,(S.products[idx].qty||0)-item.qty);dbSyncProduct(S.products[idx]);}
+      // Restore raw material inventory
+      if(item.rawUsage&&item.rawUsage.length){
+        item.rawUsage.forEach(u=>{
+          const ridx=S.rawMaterials.findIndex(r=>r.id===u.id);
+          if(ridx>=0){S.rawMaterials[ridx].qty=(S.rawMaterials[ridx].qty||0)+u.qty;dbUpsertRaw(S.rawMaterials[ridx]);}
+        });
+      }
     }
     S.productions=S.productions.filter(p=>p.id!==id);
     save();dbDeleteProd(id);
