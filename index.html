@@ -254,12 +254,6 @@ canvas.elec-chart{width:100%;display:block;}
 
 <div class="topbar">
   <h1 id="page-title">總覽</h1>
-  <div style="display:flex;align-items:center;gap:10px">
-    <span id="conn-status" style="font-size:11px;color:var(--txt3)">⚪ 未設定</span>
-    <button onclick="openSheet('sheet-settings')" style="border:none;background:none;cursor:pointer;color:var(--txt2);padding:4px;display:flex;align-items:center;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-    </button>
-  </div>
 </div>
 
 <!-- Loading Overlay -->
@@ -703,34 +697,6 @@ canvas.elec-chart{width:100%;display:block;}
 </div>
 
 <!-- Settings Sheet -->
-<div class="sheet-wrap" id="sheet-settings">
-  <div class="sheet">
-    <div class="sheet-hd"><h2>Supabase 設定</h2><button class="close-btn" onclick="closeSheet('sheet-settings')">✕</button></div>
-    <div style="background:var(--info-bg);border-radius:var(--rad);padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--info-txt);line-height:1.6">
-      請先在 Supabase 建立專案，並執行 <code style="font-family:monospace;background:rgba(0,0,0,0.15);padding:1px 5px;border-radius:4px">schema.sql</code>，再填入以下資訊。
-    </div>
-    <div class="form-group">
-      <label>Supabase Project URL</label>
-      <input type="url" id="sb-url-input" placeholder="https://xxxx.supabase.co" style="font-size:13px">
-    </div>
-    <div class="form-group">
-      <label>Anon Public Key</label>
-      <textarea id="sb-key-input" placeholder="eyJh..." style="min-height:90px;font-size:12px;font-family:monospace;word-break:break-all;"></textarea>
-    </div>
-    <div id="settings-status" style="display:none;padding:10px 12px;border-radius:var(--rad);margin-bottom:12px;font-size:13px;"></div>
-    <button class="btn-full btn-primary" onclick="saveAndConnect()">儲存並連線</button>
-    <button class="btn-full btn-secondary" style="margin-top:8px" onclick="testConnection()">測試連線</button>
-    <div style="margin-top:20px;border-top:0.5px solid var(--bdr);padding-top:16px">
-      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px;font-weight:600">資料同步</div>
-      <button class="btn-full btn-secondary" onclick="syncFromSupabase()">🔄 從 Supabase 重新載入</button>
-    </div>
-    <div style="margin-top:16px;border-top:0.5px solid var(--bdr);padding-top:16px">
-      <div style="font-size:12px;color:var(--err-txt);margin-bottom:8px;font-weight:600">危險操作</div>
-      <button onclick="clearLocalData()" style="width:100%;padding:12px;border-radius:var(--rad);font-size:14px;font-weight:500;cursor:pointer;background:var(--err-bg);color:var(--err-txt);border:0.5px solid rgba(162,45,45,0.3)">清除本機快取</button>
-    </div>
-  </div>
-</div>
-
 <!-- ===== CUSTOM CALENDAR ===== -->
 <div class="cal-wrap" id="cal-wrap">
   <div class="cal-box">
@@ -785,18 +751,9 @@ let curSec='overview';
 let pendDelType=null,pendDelId=null;
 
 // ===== SUPABASE CONFIG =====
-let SB_URL='', SB_KEY='';
+const SB_URL='https://nrlbcszzkzixbqgkmxwq.supabase.co';
+const SB_KEY='sb_publishable_IaGH-3PkywItE01emKcueg_GYYvFfSN';
 let SB_CONNECTED=false;
-
-function loadConfig(){
-  SB_URL=localStorage.getItem('sb_url')||'';
-  SB_KEY=localStorage.getItem('sb_key')||'';
-}
-function saveConfig(url,key){
-  localStorage.setItem('sb_url',url);
-  localStorage.setItem('sb_key',key);
-  SB_URL=url;SB_KEY=key;
-}
 
 function sbHeaders(){
   return{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
@@ -804,9 +761,6 @@ function sbHeaders(){
 async function sbGet(table,select='*',order=true){
   const q=order?`&order=created_at.desc`:'';
   const r=await fetch(`${SB_URL}/rest/v1/${table}?select=${select}${q}`,{headers:sbHeaders()});
-  if(!r.ok)throw new Error(await r.text());
-  return r.json();
-}
   if(!r.ok)throw new Error(await r.text());
   return r.json();
 }
@@ -850,11 +804,8 @@ function empToRow(e){return{id:e.id,name:e.name,code:e.code||null,tel:e.tel||nul
 
 // ===== LOAD FROM SUPABASE =====
 async function load(){
-  // Always load localStorage first as cache
   const d=localStorage.getItem('mfg_erp_v2');
   if(d)try{S={...S,...JSON.parse(d)};}catch(e){}
-  loadConfig();
-  if(!SB_URL||!SB_KEY){updateConnStatus(false);return;}
   showLoading(true);
   try{
     const [prods,ships,pays,raws,fgs,custs,emps,pwrArr]=await Promise.all([
@@ -872,11 +823,11 @@ async function load(){
     S.powerData=(pwrArr[0]?.data)||{};
     saveLocal();
     SB_CONNECTED=true;
-    updateConnStatus(true);
+    renderSec(curSec);
   }catch(e){
     console.error('Supabase load error:',e);
     SB_CONNECTED=false;
-    updateConnStatus(false,'連線失敗');
+    showToast('載入失敗，使用本機資料');
   }
   showLoading(false);
 }
@@ -911,17 +862,7 @@ function syncAllProducts(){S.products.forEach(p=>dbSyncProduct(p));}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
 
 // ===== UI HELPERS =====
-function updateConnStatus(ok, msg=''){
-  const el=document.getElementById('conn-status');
-  if(!el)return;
-  if(!SB_URL){el.textContent='⚪ 未設定';el.style.color='var(--txt3)';return;}
-  if(ok){el.textContent='🟢 已連線';el.style.color='var(--ok-txt)';}
-  else{el.textContent=msg?'🔴 '+msg:'🔴 離線';el.style.color='var(--err-txt)';}
-}
-function showLoading(show){
-  const el=document.getElementById('loading-overlay');
-  if(el)el.style.display=show?'flex':'none';
-}
+function showLoading(show){const el=document.getElementById('loading-overlay');if(el)el.style.display=show?'flex':'none';}
 // 本月週期定義：上月26日 ～ 本月25日
 function getCurrentCycle(){
   const now=new Date();
@@ -2194,73 +2135,6 @@ function promptMarkAllPaid(){
   document.getElementById('confirm-wrap').classList.add('open');
 }
 
-// ===== SETTINGS =====
-function showSettingsStatus(msg, ok){
-  const el=document.getElementById('settings-status');
-  el.style.display='';
-  el.textContent=msg;
-  el.style.background=ok?'var(--ok-bg)':'var(--err-bg)';
-  el.style.color=ok?'var(--ok-txt)':'var(--err-txt)';
-}
-async function testConnection(){
-  const url=document.getElementById('sb-url-input').value.trim();
-  const key=document.getElementById('sb-key-input').value.trim();
-  if(!url||!key){showSettingsStatus('請填入 URL 和 Key','');return;}
-  showSettingsStatus('測試中...','');
-  try{
-    const r=await fetch(`${url}/rest/v1/power_data?select=id&limit=1`,{headers:{'apikey':key,'Authorization':'Bearer '+key}});
-    if(r.ok){showSettingsStatus('✅ 連線成功！',true);}
-    else{const t=await r.text();showSettingsStatus('❌ 連線失敗：'+t,false);}
-  }catch(e){showSettingsStatus('❌ 錯誤：'+e.message,false);}
-}
-async function saveAndConnect(){
-  const url=document.getElementById('sb-url-input').value.trim().replace(/\/$/,'');
-  const key=document.getElementById('sb-key-input').value.trim();
-  if(!url||!key){showSettingsStatus('請填入 URL 和 Key','');return;}
-  saveConfig(url,key);
-  showSettingsStatus('儲存成功，載入資料中...','');
-  await syncFromSupabase();
-  if(SB_CONNECTED){
-    showSettingsStatus('✅ 已連線並載入資料',true);
-    setTimeout(()=>closeSheet('sheet-settings'),1200);
-  }
-}
-async function syncFromSupabase(){
-  if(!SB_URL||!SB_KEY){showSettingsStatus('尚未設定 Supabase','');return;}
-  showLoading(true);
-  try{
-    const [prods,ships,pays,raws,fgs,custs,emps,pwrArr]=await Promise.all([
-      sbGet('productions'),sbGet('shippings'),sbGet('payments'),
-      sbGet('raw_materials'),sbGet('products'),sbGet('customers'),
-      sbGet('employees'),sbGet('power_data','data',false)
-    ]);
-    S.productions=prods.map(rowToProd);
-    S.shippings=ships.map(rowToShip);
-    S.payments=pays.map(rowToPay);
-    S.rawMaterials=raws.map(rowToRaw);
-    S.products=fgs.map(rowToFG);
-    S.customers=custs.map(rowToCust);
-    S.employees=emps.map(rowToEmp);
-    S.powerData=(pwrArr[0]?.data)||{};
-    saveLocal();
-    SB_CONNECTED=true;
-    updateConnStatus(true);
-    renderSec(curSec);
-  }catch(e){
-    SB_CONNECTED=false;
-    updateConnStatus(false,'連線失敗');
-    showSettingsStatus('❌ 載入失敗：'+e.message,false);
-  }
-  showLoading(false);
-}
-function clearLocalData(){
-  if(!confirm('確定清除本機快取？Supabase 資料不受影響。'))return;
-  localStorage.removeItem('mfg_erp_v2');
-  S={productions:[],shippings:[],payments:[],rawMaterials:[],products:[],powerData:{},customers:[],employees:[]};
-  showSettingsStatus('✅ 本機快取已清除',true);
-  renderSec(curSec);
-}
-
 // ===== TOAST =====
 function showToast(msg){
   const t=document.createElement('div');
@@ -2269,16 +2143,10 @@ function showToast(msg){
 }
 
 // ===== INIT =====
-loadConfig();
-// Pre-fill settings fields
-if(SB_URL)document.getElementById('sb-url-input').value=SB_URL;
-if(SB_KEY)document.getElementById('sb-key-input').value=SB_KEY;
 initElecYears();
-// Load from localStorage immediately for instant render
 const _d=localStorage.getItem('mfg_erp_v2');
 if(_d)try{S={...S,...JSON.parse(_d)};}catch(e){}
 renderOverview();
-// Then async load from Supabase
 load();
 </script>
 </body>
