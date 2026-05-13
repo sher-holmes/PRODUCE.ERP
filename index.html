@@ -938,7 +938,7 @@ async function sbUpsert(table,row){
 // Map DB row → local object
 function rowToProd(r){return{id:r.id,name:r.name,code:r.code||'',productId:r.product_id||'',qty:r.qty||0,unit:r.unit||'',start:r.start_date||'',end:r.end_date||'',status:r.status||'進行中',note:r.note||'',rawUsage:r.raw_usage||[],createdAt:r.created_at||new Date().toISOString()};}
 function rowToShip(r){return{id:r.id,customer:r.customer,item:r.item,code:r.code||'',productId:r.product_id||'',qty:r.qty||0,price:r.price||0,amount:r.amount||0,amountTax:r.amount_tax||0,date:r.date||'',status:r.status||'待出貨',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
-function rowToPay(r){return{id:r.id,type:r.type,name:r.name,amount:r.amount||0,date:r.date||'',startDate:r.start_date||'',endDate:r.end_date||'',days:r.days||0,daily:r.daily||0,status:r.status||'待請款',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
+function rowToPay(r){return{id:r.id,type:r.type,name:r.name,amount:r.amount||0,date:r.date||'',startDate:r.start_date||'',endDate:r.end_date||'',days:r.days||0,daily:r.daily||0,leave:r.leave||0,status:r.status||'待請款',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
 function rowToRaw(r){return{id:r.id,name:r.name,code:r.code||'',unit:r.unit||'',price:r.price||0,qty:r.qty||0,safeQty:r.safe_qty||0,category:r.category||'其他',starred:r.starred||false};}
 function rowToFG(r){return{id:r.id,name:r.name,code:r.code||'',unit:r.unit||'',price:r.price||0,qty:r.qty||0,safeQty:r.safe_qty||0};}
 function rowToCust(r){return{id:r.id,name:r.name,taxId:r.tax_id||'',code:r.code||'',contact:r.contact||'',tel:r.tel||'',mobile:r.mobile||'',email:r.email||'',addr:r.addr||'',note:r.note||'',createdAt:r.created_at||new Date().toISOString()};}
@@ -947,7 +947,7 @@ function rowToEmp(r){return{id:r.id,name:r.name,code:r.code||'',tel:r.tel||'',da
 // Map local → DB row
 function prodToRow(p){return{id:p.id,name:p.name,code:p.code||null,product_id:p.productId||null,qty:p.qty,unit:p.unit,start_date:p.start||null,end_date:p.end||null,status:p.status,note:p.note||null,raw_usage:p.rawUsage||[],created_at:p.createdAt};}
 function shipToRow(s){return{id:s.id,customer:s.customer,item:s.item,code:s.code||null,product_id:s.productId||null,qty:s.qty,price:s.price||0,amount:s.amount||0,amount_tax:s.amountTax||0,date:s.date||null,status:s.status,note:s.note||null,created_at:s.createdAt};}
-function payToRow(p){return{id:p.id,type:p.type,name:p.name,amount:p.amount,date:p.date||null,start_date:p.startDate||null,end_date:p.endDate||null,days:p.days||0,daily:p.daily||0,status:p.status,note:p.note||null,created_at:p.createdAt};}
+function payToRow(p){return{id:p.id,type:p.type,name:p.name,amount:p.amount,date:p.date||null,start_date:p.startDate||null,end_date:p.endDate||null,days:p.days||0,daily:p.daily||0,leave:p.leave||0,status:p.status,note:p.note||null,created_at:p.createdAt};}
 function rawToRow(r){return{id:r.id,name:r.name,code:r.code||null,unit:r.unit||null,price:r.price||0,qty:r.qty||0,safe_qty:r.safeQty||0,category:r.category||'其他',starred:r.starred||false};}
 function fgToRow(p){return{id:p.id,name:p.name,code:p.code||null,unit:p.unit||null,price:p.price||0,qty:p.qty||0,safe_qty:p.safeQty||0};}
 function custToRow(c){return{id:c.id,name:c.name,tax_id:c.taxId||null,code:c.code||null,contact:c.contact||null,tel:c.tel||null,mobile:c.mobile||null,email:c.email||null,addr:c.addr||null,note:c.note||null,created_at:c.createdAt};}
@@ -1708,7 +1708,7 @@ function initPayEmpRows(){
   _payEmpRows.forEach(r=>calcEmpRow(r));
   renderPayEmpRows();
 }
-function calcEmpRow(r){r.amount=Math.max(0,(r.days-r.leave)*r.daily);}
+function calcEmpRow(r){r.amount=(r.days-r.leave)*r.daily;}
 function calcPayTotal(){
   const total=_payEmpRows.reduce((a,r)=>a+r.amount,0);
   const el=document.getElementById('pay-total-disp');if(el)el.textContent=fmt(total);
@@ -1722,7 +1722,14 @@ function calcPayTotal(){
 }
 function onPayEmpChange(empId,field,val){
   const r=_payEmpRows.find(x=>x.empId===empId);if(!r)return;
-  r[field]=parseFloat(val)||0;calcEmpRow(r);renderPayEmpRows();calcPayTotal();
+  r[field]=parseFloat(val)||0;
+  calcEmpRow(r);
+  // Update only the amount display for this row, not re-render whole list
+  const amtEl=document.getElementById(`pay-emp-amt-${empId}`);
+  if(amtEl)amtEl.textContent=fmt(r.amount);
+  const detailEl=document.getElementById(`pay-emp-detail-${empId}`);
+  if(detailEl)detailEl.textContent=`（${r.days} - ${r.leave}）天 × $${r.daily.toLocaleString()} = ${fmt(r.amount)}`;
+  calcPayTotal();
 }
 function renderPayEmpRows(){
   const el=document.getElementById('pay-emp-rows');if(!el)return;
@@ -1731,7 +1738,7 @@ function renderPayEmpRows(){
     <div style="background:var(--bg2);border-radius:var(--rad);padding:12px 14px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span style="font-size:14px;font-weight:600">${r.name}</span>
-        <span style="font-size:16px;font-weight:700;color:var(--ok-txt)">${fmt(r.amount)}</span>
+        <span style="font-size:16px;font-weight:700;color:var(--ok-txt)" id="pay-emp-amt-${r.empId}">${fmt(r.amount)}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         <div><div style="font-size:11px;color:var(--txt2);margin-bottom:4px">日薪</div>
@@ -1741,7 +1748,7 @@ function renderPayEmpRows(){
         <div><div style="font-size:11px;color:var(--warn-txt);margin-bottom:4px">請假天數</div>
           <input type="number" value="${r.leave}" min="0" max="7" step="0.5" style="width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(133,79,11,0.4);background:var(--bg);color:var(--txt);outline:none;" oninput="onPayEmpChange('${r.empId}','leave',this.value)"></div>
       </div>
-      <div style="font-size:11px;color:var(--txt3);margin-top:6px">（${r.days} - ${r.leave}）天 × $${r.daily.toLocaleString()} = ${fmt(r.amount)}</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:6px" id="pay-emp-detail-${r.empId}">（${r.days} - ${r.leave}）天 × $${r.daily.toLocaleString()} = ${fmt(r.amount)}</div>
     </div>`).join('');
 }
 
@@ -1768,7 +1775,7 @@ function savePay(){
     const startDate=document.getElementById('pay-start-val').value;
     let endDate='';
     if(startDate){const endD=new Date(startDate);endD.setDate(endD.getDate()+4);endDate=fmtDate(endD);}
-    const activeRows=_payEmpRows.filter(r=>(r.days-r.leave)>0||r.amount>0);
+    const activeRows=_payEmpRows.filter(r=>r.days>0||r.leave>0||r.amount!==0);
     if(!activeRows.length)return alert('請確認員工上班天數');
     const total=activeRows.reduce((a,r)=>a+r.amount,0);
     const rows=[
@@ -1872,7 +1879,7 @@ function renderPayment(){
   const q=document.getElementById('pay-search').value.toLowerCase();
   const f=document.getElementById('pay-filter').value;
   const pend=S.payments.filter(p=>p.status==='待請款').reduce((a,b)=>a+b.amount,0);
-  const paid=S.payments.filter(p=>p.status==='已付款'&&isThisMonth(p.createdAt)).reduce((a,b)=>a+b.amount,0);
+  const paid=S.payments.filter(p=>p.status==='已付款'&&isThisMonth(p.date||p.startDate||p.createdAt)).reduce((a,b)=>a+b.amount,0);
   document.getElementById('pay-cnt-pend').textContent=fmt(pend);
   document.getElementById('pay-cnt-paid').textContent=fmt(paid);
   document.getElementById('pay-cycle-sub').textContent=cycleLabel();
@@ -1892,14 +1899,17 @@ function renderPayment(){
   });
 
   function payRow(p){
+    const wageDetail=p.type==='薪資'&&p.daily?`<div class="list-sub" style="color:var(--txt3)">上班 ${p.days}天${p.leave?' - 請假 '+p.leave+'天':''} · 日薪 ${fmt(p.daily)}</div>`:'';
+    const amtColor=p.amount<0?'cr':p.type==='薪資'?'cg':'cb';
     return`<div class="list-row">
       <div class="list-left">
         <div class="list-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${p.name} ${bdg(p.type)}</div>
+        ${wageDetail}
       </div>
       <div class="list-right">
         <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
           ${bdg(p.status)}
-          <div class="list-amt ${p.type==='薪資'?'cg':'cb'}">${fmt(p.amount)}</div>
+          <div class="list-amt ${amtColor}">${fmt(p.amount)}</div>
         </div>
         <div class="acts" style="margin-top:6px">
           <button class="ibt edit" onclick="openPaySheet('${p.id}')">${ICON_EDIT}</button>
@@ -1957,11 +1967,11 @@ function renderPayment(){
       intGroups[ik].push(p);
     });
 
-    // Sort by start date descending
+    // Sort by start date ascending
     const sortedIntKeys=Object.keys(intGroups).sort((a,b)=>{
       const sa=a.split('::')[0]||'';
       const sb=b.split('::')[0]||'';
-      return sb.localeCompare(sa);
+      return sa.localeCompare(sb);
     });
 
     let innerHtml='';
