@@ -259,8 +259,30 @@ canvas.elec-chart{width:100%;display:block;}
 </head>
 <body>
 
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:#000;flex-direction:column;align-items:center;justify-content:center;gap:48px;padding:40px;">
+  <div style="text-align:center">
+    <div style="font-size:13px;font-weight:500;letter-spacing:.25em;color:rgba(255,255,255,0.35);margin-bottom:16px;text-transform:uppercase">Manufacturing</div>
+    <div style="font-size:32px;font-weight:700;color:#fff;letter-spacing:.08em">PRODUCE ERP</div>
+  </div>
+  <button onclick="signInWithGoogle()" style="display:flex;align-items:center;gap:10px;padding:13px 28px;border-radius:999px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:14px;font-weight:500;cursor:pointer;letter-spacing:.02em;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.06)'">
+    <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Sign in with Google
+  </button>
+  <div id="login-error" style="color:rgba(255,100,100,0.9);font-size:13px;display:none;text-align:center;position:absolute;bottom:48px"></div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app-wrap" style="display:none">
+
 <div class="topbar">
   <h1 id="page-title">總覽</h1>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="topbar-user" style="font-size:11px;color:var(--txt3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button onclick="signOut()" title="登出" style="border:none;background:none;cursor:pointer;color:var(--txt3);padding:4px;display:flex;align-items:center;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
 </div>
 
 <!-- Loading Overlay -->
@@ -581,35 +603,39 @@ canvas.elec-chart{width:100%;display:block;}
     <div class="sheet-hd"><h2 id="pay-sh-title">新增請款</h2><button class="close-btn" onclick="closeSheet('sheet-pay')">✕</button></div>
     <input type="hidden" id="pay-eid">
     <div class="form-group"><label>類型</label><select id="pay-type" onchange="togglePayType()"><option value="薪資">臨時工人薪資</option><option value="零用金">零用金</option></select></div>
+
+    <!-- 薪資：多員工模式 -->
     <div id="pay-wage-fields">
-      <!-- 員工選取 -->
-      <div class="form-group">
-        <label>工人姓名</label>
-        <select id="pay-worker-picker" onchange="applyWorkerPicker()"><option value="">— 從員工名冊選取 —</option></select>
-        <input type="hidden" id="pay-worker">
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>工作天數</label><input type="number" id="pay-days" placeholder="0" step="0.5" oninput="calcWage()"></div>
-        <div class="form-group"><label>日薪 (TWD)</label><input type="number" id="pay-daily" placeholder="0" oninput="calcWage()"></div>
-      </div>
-      <!-- 起始日期 + 自動區間 -->
+      <!-- 起始日期 -->
       <div class="form-group">
         <label>起始日期</label>
         <button type="button" class="date-input-btn empty" id="pay-start-btn" onclick="openCal('pay-start-btn','pay-start-val','pay-start-disp')">
           <span id="pay-start-disp">選擇日期</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </button>
-        <input type="hidden" id="pay-start-val" oninput="calcWage()">
+        <input type="hidden" id="pay-start-val">
       </div>
       <div id="pay-range-box" style="display:none;background:var(--info-bg);border-radius:var(--rad);padding:10px 14px;margin-bottom:14px;">
         <div style="font-size:11px;color:var(--info-txt);margin-bottom:2px">工作日期區間</div>
         <div style="font-size:15px;font-weight:600;color:var(--info-txt)" id="pay-range-disp">—</div>
       </div>
-      <div class="wage-box"><div class="wage-box-lbl">應付薪資</div><div class="wage-box-val" id="pay-calc">$0</div></div>
+
+      <!-- 員工列表 -->
+      <div style="font-size:12px;color:var(--txt2);font-weight:600;margin-bottom:8px">員工薪資明細</div>
+      <div id="pay-emp-rows"></div>
+
+      <!-- 合計 -->
+      <div style="background:var(--bg2);border-radius:var(--rad);padding:12px 14px;margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--txt2)">本次請款合計</span>
+          <span style="font-size:20px;font-weight:700;color:var(--ok-txt)" id="pay-total-disp">$0</span>
+        </div>
+      </div>
     </div>
+
+    <!-- 零用金 -->
     <div id="pay-petty-fields" style="display:none">
       <div class="form-group"><label>用途說明</label><input type="text" id="pay-purpose" placeholder="用途說明"></div>
-      <!-- 零用金的日期 -->
       <div class="form-group">
         <label>日期</label>
         <button type="button" class="date-input-btn empty" id="pay-date-btn" onclick="openCal('pay-date-btn','pay-date-val','pay-date-disp')">
@@ -618,8 +644,9 @@ canvas.elec-chart{width:100%;display:block;}
         </button>
         <input type="hidden" id="pay-date-val">
       </div>
+      <div class="form-group"><label>金額 (TWD)</label><input type="number" id="pay-amount" placeholder="0"></div>
     </div>
-    <div class="form-group"><label>金額 (TWD)</label><input type="number" id="pay-amount" placeholder="0"></div>
+
     <div class="form-group"><label>狀態</label><select id="pay-status"><option>待請款</option><option>已付款</option></select></div>
     <div class="form-group"><label>備註</label><textarea id="pay-note" placeholder="備註說明"></textarea></div>
     <button class="btn-full btn-primary" onclick="savePay()">儲存</button>
@@ -789,10 +816,99 @@ let pendDelType=null,pendDelId=null;
 const SB_URL='https://nrlbcszzkzixbqgkmxwq.supabase.co';
 const SB_KEY='sb_publishable_IaGH-3PkywItE01emKcueg_GYYvFfSN';
 let SB_CONNECTED=false;
+let _session=null; // current Supabase session
 
+// ===== AUTH HELPERS =====
 function sbHeaders(){
-  return{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
+  const token=_session?.access_token||SB_KEY;
+  return{
+    'Content-Type':'application/json',
+    'apikey':SB_KEY,
+    'Authorization':'Bearer '+token,
+    'Prefer':'return=representation'
+  };
 }
+
+// Supabase Auth API
+async function getSession(){
+  // Check URL hash for OAuth callback
+  const hash=window.location.hash;
+  if(hash.includes('access_token')){
+    const params=new URLSearchParams(hash.substring(1));
+    const accessToken=params.get('access_token');
+    const refreshToken=params.get('refresh_token');
+    const expiresIn=parseInt(params.get('expires_in')||'3600');
+    if(accessToken){
+      _session={
+        access_token:accessToken,
+        refresh_token:refreshToken,
+        expires_at:Date.now()+expiresIn*1000
+      };
+      localStorage.setItem('sb_session',JSON.stringify(_session));
+      // Clean URL hash
+      history.replaceState(null,'',window.location.pathname+window.location.search);
+      return true;
+    }
+  }
+  // Try localStorage
+  const saved=localStorage.getItem('sb_session');
+  if(saved){
+    try{
+      const s=JSON.parse(saved);
+      if(s.expires_at>Date.now()+60000){
+        _session=s;
+        // Verify token is still valid
+        const r=await fetch(`${SB_URL}/auth/v1/user`,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+s.access_token}});
+        if(r.ok){
+          const user=await r.json();
+          _session.user=user;
+          return true;
+        }
+      }
+      // Try refresh
+      if(s.refresh_token){
+        const rr=await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{
+          method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
+          body:JSON.stringify({refresh_token:s.refresh_token})
+        });
+        if(rr.ok){
+          const newSession=await rr.json();
+          _session={access_token:newSession.access_token,refresh_token:newSession.refresh_token,expires_at:Date.now()+newSession.expires_in*1000,user:newSession.user};
+          localStorage.setItem('sb_session',JSON.stringify(_session));
+          return true;
+        }
+      }
+    }catch(e){}
+    localStorage.removeItem('sb_session');
+  }
+  return false;
+}
+
+function signInWithGoogle(){
+  const redirectTo=encodeURIComponent(window.location.href.split('#')[0]);
+  window.location.href=`${SB_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}`;
+}
+
+async function signOut(){
+  if(_session?.access_token){
+    await fetch(`${SB_URL}/auth/v1/logout`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+_session.access_token}}).catch(()=>{});
+  }
+  _session=null;
+  localStorage.removeItem('sb_session');
+  showLoginScreen();
+}
+
+// ===== LOGIN SCREEN =====
+function showLoginScreen(){
+  document.getElementById('app-wrap').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+function hideLoginScreen(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-wrap').style.display='block';
+}
+
+// ===== SUPABASE API =====
 async function sbGet(table,select='*',order=true){
   const q=order?`&order=created_at.desc`:'';
   const r=await fetch(`${SB_URL}/rest/v1/${table}?select=${select}${q}`,{headers:sbHeaders()});
@@ -841,6 +957,7 @@ function empToRow(e){return{id:e.id,name:e.name,code:e.code||null,tel:e.tel||nul
 async function load(){
   const d=localStorage.getItem('mfg_erp_v2');
   if(d)try{S={...S,...JSON.parse(d)};}catch(e){}
+  if(!_session){showToast('請先登入');return;}
   showLoading(true);
   try{
     const [prods,ships,pays,raws,fgs,custs,emps,pwrArr]=await Promise.all([
@@ -862,6 +979,7 @@ async function load(){
   }catch(e){
     console.error('Supabase load error:',e);
     SB_CONNECTED=false;
+    if(e.message&&e.message.includes('JWT')){signOut();return;}
     showToast('載入失敗，使用本機資料');
   }
   showLoading(false);
@@ -1016,7 +1134,7 @@ function selectCalDay(str){
   const btn=document.getElementById(_calBtnId);
   if(btn)btn.classList.remove('empty');
   // trigger wage recalc if this is the pay start date
-  if(_calInputId==='pay-start-val')calcWage();
+  if(_calInputId==='pay-start-val')calcPayTotal();
   closeCal();
 }
 function setDateBtn(btnId,dispId,inputId,val){
@@ -1580,136 +1698,106 @@ function togglePayType(){
   document.getElementById('pay-wage-fields').style.display=t==='薪資'?'':'none';
   document.getElementById('pay-petty-fields').style.display=t==='零用金'?'':'none';
 }
+function calcWage(){}
+function populateWorkerPicker(){}
+function applyWorkerPicker(){}
 
-function calcWage(){
-  const days=parseFloat(document.getElementById('pay-days').value)||0;
-  const daily=parseFloat(document.getElementById('pay-daily').value)||0;
-  const total=days*daily;
-  document.getElementById('pay-calc').textContent=fmt(total);
-  document.getElementById('pay-amount').value=total;
-  // Calculate date range
-  const start=document.getElementById('pay-start-val').value;
+let _payEmpRows=[];
+function initPayEmpRows(){
+  _payEmpRows=[...S.employees].sort((a,b)=>(a.code||'').localeCompare(b.code||'')).map(e=>({empId:e.id,name:e.name,daily:e.daily||0,days:5,leave:0,amount:0}));
+  _payEmpRows.forEach(r=>calcEmpRow(r));
+  renderPayEmpRows();
+}
+function calcEmpRow(r){r.amount=Math.max(0,(r.days-r.leave)*r.daily);}
+function calcPayTotal(){
+  const total=_payEmpRows.reduce((a,r)=>a+r.amount,0);
+  const el=document.getElementById('pay-total-disp');if(el)el.textContent=fmt(total);
+  const start=document.getElementById('pay-start-val')?.value;
   const rangeBox=document.getElementById('pay-range-box');
-  const rangeDisp=document.getElementById('pay-range-disp');
-  if(start&&days>0){
-    const startDate=new Date(start);
-    // end date = start + ceil(days) - 1 calendar days (treating each day as 1 calendar day)
-    const endDate=new Date(start);
-    endDate.setDate(startDate.getDate()+Math.ceil(days)-1);
-    const fmt2=d=>`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-    rangeDisp.textContent=days===Math.ceil(days)?`${fmt2(startDate)} ～ ${fmt2(endDate)}（${days} 天）`:`${fmt2(startDate)} ～ ${fmt2(endDate)}（${days} 天，含半天）`;
-    rangeBox.style.display='';
-  } else {
-    rangeBox.style.display='none';
-  }
+  if(start){
+    const endD=new Date(start);endD.setDate(endD.getDate()+4);
+    document.getElementById('pay-range-disp').textContent=`${start} ～ ${fmtDate(endD)}（5天）`;
+    if(rangeBox)rangeBox.style.display='';
+  }else{if(rangeBox)rangeBox.style.display='none';}
 }
-
-// Populate worker picker from employees
-function populateWorkerPicker(currentName){
-  const sel=document.getElementById('pay-worker-picker');
-  sel.innerHTML='<option value="">— 從員工名冊選取 —</option>';
-  const sorted=[...S.employees].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
-  sorted.forEach(e=>{
-    const o=document.createElement('option');
-    o.value=e.id;
-    o.textContent=e.name+(e.code?` [${e.code}]`:'')+(e.daily?` · 日薪 ${e.daily.toLocaleString()}`:''  );
-    if(e.name===currentName)o.selected=true;
-    sel.appendChild(o);
-  });
+function onPayEmpChange(empId,field,val){
+  const r=_payEmpRows.find(x=>x.empId===empId);if(!r)return;
+  r[field]=parseFloat(val)||0;calcEmpRow(r);renderPayEmpRows();calcPayTotal();
 }
-function applyWorkerPicker(){
-  const eid=document.getElementById('pay-worker-picker').value;
-  if(!eid){document.getElementById('pay-worker').value='';return;}
-  const e=S.employees.find(x=>x.id===eid);if(!e)return;
-  document.getElementById('pay-worker').value=e.name;
-  if(e.daily){document.getElementById('pay-daily').value=e.daily;calcWage();}
+function renderPayEmpRows(){
+  const el=document.getElementById('pay-emp-rows');if(!el)return;
+  if(!_payEmpRows.length){el.innerHTML=`<div style="font-size:13px;color:var(--txt2);padding:12px 0;text-align:center">尚未建立員工名冊</div>`;return;}
+  el.innerHTML=_payEmpRows.map(r=>`
+    <div style="background:var(--bg2);border-radius:var(--rad);padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:14px;font-weight:600">${r.name}</span>
+        <span style="font-size:16px;font-weight:700;color:var(--ok-txt)">${fmt(r.amount)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div><div style="font-size:11px;color:var(--txt2);margin-bottom:4px">日薪</div>
+          <input type="number" value="${r.daily}" min="0" style="width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:0.5px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;" oninput="onPayEmpChange('${r.empId}','daily',this.value)"></div>
+        <div><div style="font-size:11px;color:var(--txt2);margin-bottom:4px">上班天數</div>
+          <input type="number" value="${r.days}" min="0" max="7" step="0.5" style="width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:0.5px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;" oninput="onPayEmpChange('${r.empId}','days',this.value)"></div>
+        <div><div style="font-size:11px;color:var(--warn-txt);margin-bottom:4px">請假天數</div>
+          <input type="number" value="${r.leave}" min="0" max="7" step="0.5" style="width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(133,79,11,0.4);background:var(--bg);color:var(--txt);outline:none;" oninput="onPayEmpChange('${r.empId}','leave',this.value)"></div>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:6px">（${r.days} - ${r.leave}）天 × $${r.daily.toLocaleString()} = ${fmt(r.amount)}</div>
+    </div>`).join('');
 }
 
 function openPaySheet(id){
-  document.getElementById('pay-sh-title').textContent=id?'編輯請款':'新增請款';
-  document.getElementById('pay-eid').value=id||'';
-  if(id){
-    const p=S.payments.find(x=>x.id===id);
-    document.getElementById('pay-type').value=p.type;togglePayType();
-    if(p.type==='薪資'){
-      populateWorkerPicker(p.name);
-      document.getElementById('pay-worker').value=p.name;
-      document.getElementById('pay-days').value=p.days||'';
-      document.getElementById('pay-daily').value=p.daily||'';
-      document.getElementById('pay-calc').textContent=fmt(p.amount);
-      setDateBtn('pay-start-btn','pay-start-disp','pay-start-val',p.startDate||p.date||'');
-      // Recalculate range display
-      if(p.startDate)calcWage();
-    } else {
-      document.getElementById('pay-purpose').value=p.name;
-      setDateBtn('pay-date-btn','pay-date-disp','pay-date-val',p.date||'');
-    }
-    document.getElementById('pay-amount').value=p.amount;
-    document.getElementById('pay-status').value=p.status;
-    document.getElementById('pay-note').value=p.note||'';
-  } else {
-    document.getElementById('pay-type').value='薪資';togglePayType();
-    populateWorkerPicker('');
-    document.getElementById('pay-worker').value='';
-    ['pay-purpose','pay-note'].forEach(x=>document.getElementById(x).value='');
-    document.getElementById('pay-days').value='';document.getElementById('pay-daily').value='';
-    document.getElementById('pay-amount').value='';document.getElementById('pay-calc').textContent='$0';
-    document.getElementById('pay-status').value='待請款';
-    document.getElementById('pay-range-box').style.display='none';
-    setDateBtn('pay-start-btn','pay-start-disp','pay-start-val','');
-    setDateBtn('pay-date-btn','pay-date-disp','pay-date-val','');
-  }
+  document.getElementById('pay-sh-title').textContent='新增請款';
+  document.getElementById('pay-eid').value='';
+  document.getElementById('pay-type').value='薪資';togglePayType();
+  setDateBtn('pay-start-btn','pay-start-disp','pay-start-val','');
+  setDateBtn('pay-date-btn','pay-date-disp','pay-date-val','');
+  document.getElementById('pay-range-box').style.display='none';
+  document.getElementById('pay-status').value='待請款';
+  document.getElementById('pay-note').value='';
+  const pp=document.getElementById('pay-purpose');if(pp)pp.value='';
+  const pa=document.getElementById('pay-amount');if(pa)pa.value='';
+  initPayEmpRows();calcPayTotal();
   openSheet('sheet-pay');
 }
 
 function savePay(){
   const type=document.getElementById('pay-type').value;
-  let name='',startDate='',endDate='',days=0,daily=0;
-  if(type==='薪資'){
-    name=document.getElementById('pay-worker').value.trim();
-    if(!name)return alert('請選擇或輸入工人姓名');
-    days=parseFloat(document.getElementById('pay-days').value)||0;
-    daily=parseFloat(document.getElementById('pay-daily').value)||0;
-    startDate=document.getElementById('pay-start-val').value;
-    if(startDate&&days>0){
-      const endD=new Date(startDate);endD.setDate(endD.getDate()+Math.ceil(days)-1);
-      endDate=fmtDate(endD);
-    }
-  } else {
-    name=document.getElementById('pay-purpose').value.trim()||'零用金';
-  }
-  const amount=parseFloat(document.getElementById('pay-amount').value)||0;
-  if(!amount)return alert('請輸入金額');
-  const date=type==='薪資'?(startDate||''):document.getElementById('pay-date-val').value;
   const status=document.getElementById('pay-status').value;
   const note=document.getElementById('pay-note').value.trim();
-  const eid=document.getElementById('pay-eid').value;
-  const rows=[
-    {label:'類型',value:type},
-    {label:type==='薪資'?'工人姓名':'用途',value:name},
-    {label:'金額',value:fmt(amount)},
-    {label:'狀態',value:status},
-  ];
-  if(type==='薪資'&&days){
-    rows.push({label:'工作天數',value:`${days} 天`});
-    rows.push({label:'日薪',value:fmt(daily)});
-    if(startDate)rows.push({label:'日期區間',value:startDate+(endDate?' ～ '+endDate:'')});
-  } else if(date){
-    rows.push({label:'日期',value:date});
+  if(type==='薪資'){
+    const startDate=document.getElementById('pay-start-val').value;
+    let endDate='';
+    if(startDate){const endD=new Date(startDate);endD.setDate(endD.getDate()+4);endDate=fmtDate(endD);}
+    const activeRows=_payEmpRows.filter(r=>(r.days-r.leave)>0||r.amount>0);
+    if(!activeRows.length)return alert('請確認員工上班天數');
+    const total=activeRows.reduce((a,r)=>a+r.amount,0);
+    const rows=[
+      {label:'日期區間',value:startDate?(startDate+(endDate?' ～ '+endDate:'')):'未設定'},
+      {label:'員工數',value:`${activeRows.length} 人`},
+      ...activeRows.map(r=>({label:r.name,value:`${r.days}天 - 請假${r.leave}天 = ${fmt(r.amount)}`})),
+      {label:'合計',value:fmt(total)},{label:'狀態',value:status},
+    ];
+    openSaveConfirmFn({title:'確認新增薪資請款',sub:'',rows,fn:()=>{
+      activeRows.forEach(r=>{
+        const item={id:genId(),type:'薪資',name:r.name,amount:r.amount,date:startDate||'',startDate,endDate,days:r.days,daily:r.daily,leave:r.leave||0,status,note,createdAt:new Date().toISOString()};
+        S.payments.unshift(item);dbUpsertPay(item);
+      });
+      save();closeSheet('sheet-pay');renderSec(curSec);
+    }});
+  }else{
+    const name=document.getElementById('pay-purpose')?.value.trim()||'零用金';
+    const amount=parseFloat(document.getElementById('pay-amount')?.value)||0;
+    if(!amount)return alert('請輸入金額');
+    const date=document.getElementById('pay-date-val').value;
+    const rows=[{label:'用途',value:name},{label:'金額',value:fmt(amount)},{label:'日期',value:date||'未設定'},{label:'狀態',value:status}];
+    if(note)rows.push({label:'備註',value:note});
+    openSaveConfirmFn({title:'確認新增零用金',sub:'',rows,fn:()=>{
+      const item={id:genId(),type:'零用金',name,amount,date,startDate:'',endDate:'',days:0,daily:0,leave:0,status,note,createdAt:new Date().toISOString()};
+      S.payments.unshift(item);save();dbUpsertPay(item);closeSheet('sheet-pay');renderSec(curSec);
+    }});
   }
-  if(note)rows.push({label:'備註',value:note});
-  const obj={type,name,amount,date,startDate,endDate,days,daily,status,note};
-  openSaveConfirmFn({
-    title:eid?'確認編輯請款':'確認新增請款',
-    sub:'',
-    rows,
-    fn:()=>{
-      if(eid){const idx=S.payments.findIndex(p=>p.id===eid);S.payments[idx]={...S.payments[idx],...obj};save();dbUpsertPay(S.payments[idx]);}
-      else{const item={id:genId(),...obj,createdAt:new Date().toISOString()};S.payments.unshift(item);save();dbUpsertPay(item);}
-      closeSheet('sheet-pay');renderSec(curSec);
-    }
-  });
 }
+
 
 // ===== EMPLOYEES =====
 function openEmpSheet(id){
@@ -2474,10 +2562,28 @@ function showToast(msg){
 
 // ===== INIT =====
 initElecYears();
+
+// Load cache for instant render
 const _d=localStorage.getItem('mfg_erp_v2');
 if(_d)try{S={...S,...JSON.parse(_d)};}catch(e){}
-renderOverview();
-load();
+
+// Auth → then load data
+(async()=>{
+  const ok=await getSession();
+  if(!ok){
+    showLoginScreen();
+    return;
+  }
+  // Show user email in topbar
+  const email=_session?.user?.email||_session?.user?.email;
+  if(email){
+    const userEl=document.getElementById('topbar-user');
+    if(userEl)userEl.textContent=email;
+  }
+  hideLoginScreen();
+  renderOverview();
+  load();
+})();
 </script>
 </body>
 </html>
