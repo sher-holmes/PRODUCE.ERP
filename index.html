@@ -977,10 +977,10 @@ async function sendOTP(){
       btn.textContent='寄送登入連結';btn.disabled=false;return;
     }
     const redirectTo='https://sher-holmes.github.io/PRODUCE.ERP/';
-    const r=await fetch(`${SB_URL}/auth/v1/magiclink`,{
+    const r=await fetch(`${SB_URL}/auth/v1/magiclink?redirect_to=${encodeURIComponent(redirectTo)}`,{
       method:'POST',
       headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({email,redirect_to:redirectTo})
+      body:JSON.stringify({email})
     });
     if(!r.ok){
       const e=await r.json();
