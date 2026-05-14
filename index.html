@@ -894,11 +894,11 @@ async function getSession(){
 async function checkAllowedUser(session){
   if(!session?.access_token)return false;
   try{
-    const r=await fetch(`${SB_URL}/rest/v1/allowed_users?select=email&limit=1`,{
+    const email=session.user?.email;
+    if(!email)return false;
+    const r=await fetch(`${SB_URL}/rest/v1/allowed_users?email=eq.${encodeURIComponent(email)}&select=email`,{
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+session.access_token}
     });
-    // If can read allowed_users → user is in whitelist (RLS allows it)
-    // If 0 rows returned or error → not allowed
     if(!r.ok)return false;
     const data=await r.json();
     return Array.isArray(data)&&data.length>0;
