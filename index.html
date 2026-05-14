@@ -3,7 +3,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -137,7 +137,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-se
 /* SHEET MODAL */
 .sheet-wrap{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5);align-items:flex-end;}
 .sheet-wrap.open{display:flex;}
-.sheet{background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px calc(24px + env(safe-area-inset-bottom));width:100%;max-height:92vh;overflow-y:auto;}
+.sheet{background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px calc(24px + env(safe-area-inset-bottom));width:100%;max-height:85dvh;max-height:85vh;overflow-y:auto;overscroll-behavior:contain;}
 .sheet-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
 .sheet-hd h2{font-size:17px;font-weight:600;}
 .close-btn{border:none;background:var(--bg2);color:var(--txt2);width:30px;height:30px;border-radius:50%;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
@@ -1724,9 +1724,8 @@ function onPayEmpChange(empId,field,val){
   const r=_payEmpRows.find(x=>x.empId===empId);if(!r)return;
   r[field]=parseFloat(val)||0;
   calcEmpRow(r);
-  // Update only the amount display for this row, not re-render whole list
   const amtEl=document.getElementById(`pay-emp-amt-${empId}`);
-  if(amtEl)amtEl.textContent=fmt(r.amount);
+  if(amtEl){amtEl.textContent=fmt(r.amount);amtEl.style.color=r.amount<0?'var(--err-txt)':'var(--ok-txt)';}
   const detailEl=document.getElementById(`pay-emp-detail-${empId}`);
   if(detailEl)detailEl.textContent=`（${r.days} - ${r.leave}）天 × $${r.daily.toLocaleString()} = ${fmt(r.amount)}`;
   calcPayTotal();
@@ -1734,19 +1733,31 @@ function onPayEmpChange(empId,field,val){
 function renderPayEmpRows(){
   const el=document.getElementById('pay-emp-rows');if(!el)return;
   if(!_payEmpRows.length){el.innerHTML=`<div style="font-size:13px;color:var(--txt2);padding:12px 0;text-align:center">尚未建立員工名冊</div>`;return;}
-  el.innerHTML=_payEmpRows.map(r=>`
+  // Sort by employee code
+  const sorted=[..._payEmpRows].sort((a,b)=>{
+    const ea=S.employees.find(e=>e.id===a.empId);
+    const eb=S.employees.find(e=>e.id===b.empId);
+    return (ea?.code||'').localeCompare(eb?.code||'');
+  });
+  el.innerHTML=sorted.map(r=>`
     <div style="background:var(--bg2);border-radius:var(--rad);padding:12px 14px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span style="font-size:14px;font-weight:600">${r.name}</span>
-        <span style="font-size:16px;font-weight:700;color:var(--ok-txt)" id="pay-emp-amt-${r.empId}">${fmt(r.amount)}</span>
+        <span style="font-size:16px;font-weight:700;color:${r.amount<0?'var(--err-txt)':'var(--ok-txt)'}" id="pay-emp-amt-${r.empId}">${fmt(r.amount)}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         <div><div style="font-size:11px;color:var(--txt2);margin-bottom:4px">日薪</div>
-          <input type="number" value="${r.daily}" min="0" style="width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:0.5px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;" oninput="onPayEmpChange('${r.empId}','daily',this.value)"></div>
+          <input type="number" inputmode="numeric" value="${r.daily}" min="0"
+            style="width:100%;font-size:15px;padding:8px;border-radius:6px;border:0.5px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;-webkit-appearance:none;"
+            onchange="onPayEmpChange('${r.empId}','daily',this.value)"></div>
         <div><div style="font-size:11px;color:var(--txt2);margin-bottom:4px">上班天數</div>
-          <input type="number" value="${r.days}" min="0" max="7" step="0.5" style="width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:0.5px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;" oninput="onPayEmpChange('${r.empId}','days',this.value)"></div>
+          <input type="number" inputmode="decimal" value="${r.days}" min="0" step="0.5"
+            style="width:100%;font-size:15px;padding:8px;border-radius:6px;border:0.5px solid var(--bdr2);background:var(--bg);color:var(--txt);outline:none;-webkit-appearance:none;"
+            onchange="onPayEmpChange('${r.empId}','days',this.value)"></div>
         <div><div style="font-size:11px;color:var(--warn-txt);margin-bottom:4px">請假天數</div>
-          <input type="number" value="${r.leave}" min="0" max="7" step="0.5" style="width:100%;font-size:13px;padding:6px 8px;border-radius:6px;border:0.5px solid rgba(133,79,11,0.4);background:var(--bg);color:var(--txt);outline:none;" oninput="onPayEmpChange('${r.empId}','leave',this.value)"></div>
+          <input type="number" inputmode="decimal" value="${r.leave}" min="0" step="0.5"
+            style="width:100%;font-size:15px;padding:8px;border-radius:6px;border:0.5px solid rgba(133,79,11,0.4);background:var(--bg);color:var(--txt);outline:none;-webkit-appearance:none;"
+            onchange="onPayEmpChange('${r.empId}','leave',this.value)"></div>
       </div>
       <div style="font-size:11px;color:var(--txt3);margin-top:6px" id="pay-emp-detail-${r.empId}">（${r.days} - ${r.leave}）天 × $${r.daily.toLocaleString()} = ${fmt(r.amount)}</div>
     </div>`).join('');
