@@ -839,13 +839,18 @@ async function getSession(){
     const refreshToken=params.get('refresh_token');
     const expiresIn=parseInt(params.get('expires_in')||'3600');
     if(accessToken){
-      _session={
-        access_token:accessToken,
-        refresh_token:refreshToken,
-        expires_at:Date.now()+expiresIn*1000
-      };
+      _session={access_token:accessToken,refresh_token:refreshToken,expires_at:Date.now()+expiresIn*1000};
+      // Get user info
+      const r=await fetch(`${SB_URL}/auth/v1/user`,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+accessToken}});
+      if(r.ok){const user=await r.json();_session.user=user;}
+      // Check whitelist
+      const allowed=await checkAllowedUser(_session);
+      if(!allowed){
+        _session=null;
+        showLoginError('此帳號未獲授權，請聯繫管理員');
+        return false;
+      }
       localStorage.setItem('sb_session',JSON.stringify(_session));
-      // Clean URL hash
       history.replaceState(null,'',window.location.pathname+window.location.search);
       return true;
     }
@@ -857,11 +862,11 @@ async function getSession(){
       const s=JSON.parse(saved);
       if(s.expires_at>Date.now()+60000){
         _session=s;
-        // Verify token is still valid
         const r=await fetch(`${SB_URL}/auth/v1/user`,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+s.access_token}});
         if(r.ok){
-          const user=await r.json();
-          _session.user=user;
+          const user=await r.json();_session.user=user;
+          const allowed=await checkAllowedUser(_session);
+          if(!allowed){_session=null;localStorage.removeItem('sb_session');showLoginError('此帳號未獲授權');return false;}
           return true;
         }
       }
@@ -874,6 +879,8 @@ async function getSession(){
         if(rr.ok){
           const newSession=await rr.json();
           _session={access_token:newSession.access_token,refresh_token:newSession.refresh_token,expires_at:Date.now()+newSession.expires_in*1000,user:newSession.user};
+          const allowed=await checkAllowedUser(_session);
+          if(!allowed){_session=null;localStorage.removeItem('sb_session');showLoginError('此帳號未獲授權');return false;}
           localStorage.setItem('sb_session',JSON.stringify(_session));
           return true;
         }
@@ -882,6 +889,25 @@ async function getSession(){
     localStorage.removeItem('sb_session');
   }
   return false;
+}
+
+async function checkAllowedUser(session){
+  if(!session?.access_token)return false;
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/allowed_users?select=email&limit=1`,{
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+session.access_token}
+    });
+    // If can read allowed_users → user is in whitelist (RLS allows it)
+    // If 0 rows returned or error → not allowed
+    if(!r.ok)return false;
+    const data=await r.json();
+    return Array.isArray(data)&&data.length>0;
+  }catch(e){return false;}
+}
+
+function showLoginError(msg){
+  const el=document.getElementById('login-error');
+  if(el){el.textContent=msg;el.style.display='block';}
 }
 
 function signInWithGoogle(){
