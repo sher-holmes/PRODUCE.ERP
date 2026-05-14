@@ -1764,17 +1764,39 @@ function renderPayEmpRows(){
 }
 
 function openPaySheet(id){
-  document.getElementById('pay-sh-title').textContent='新增請款';
-  document.getElementById('pay-eid').value='';
-  document.getElementById('pay-type').value='薪資';togglePayType();
-  setDateBtn('pay-start-btn','pay-start-disp','pay-start-val','');
-  setDateBtn('pay-date-btn','pay-date-disp','pay-date-val','');
-  document.getElementById('pay-range-box').style.display='none';
-  document.getElementById('pay-status').value='待請款';
-  document.getElementById('pay-note').value='';
-  const pp=document.getElementById('pay-purpose');if(pp)pp.value='';
-  const pa=document.getElementById('pay-amount');if(pa)pa.value='';
-  initPayEmpRows();calcPayTotal();
+  const p=id?S.payments.find(x=>x.id===id):null;
+  document.getElementById('pay-sh-title').textContent=p?'編輯請款':'新增請款';
+  document.getElementById('pay-eid').value=id||'';
+  document.getElementById('pay-note').value=p?.note||'';
+  document.getElementById('pay-status').value=p?.status||'待請款';
+
+  if(p&&p.type==='零用金'){
+    document.getElementById('pay-type').value='零用金';togglePayType();
+    const pp=document.getElementById('pay-purpose');if(pp)pp.value=p.name||'';
+    const pa=document.getElementById('pay-amount');if(pa)pa.value=p.amount||'';
+    setDateBtn('pay-date-btn','pay-date-disp','pay-date-val',p.date||'');
+  } else if(p&&p.type==='薪資'){
+    // 編輯薪資：單筆模式（只顯示這一筆員工）
+    document.getElementById('pay-type').value='薪資';togglePayType();
+    setDateBtn('pay-start-btn','pay-start-disp','pay-start-val',p.startDate||p.date||'');
+    // 用單員工 row 模式
+    _payEmpRows=[{empId:p.id+'_edit',name:p.name,daily:p.daily||0,days:p.days||0,leave:p.leave||0,amount:p.amount||0}];
+    renderPayEmpRows();calcPayTotal();
+    if(p.startDate){
+      const endD=new Date(p.startDate);endD.setDate(endD.getDate()+4);
+      document.getElementById('pay-range-disp').textContent=`${p.startDate} ～ ${fmtDate(endD)}（5天）`;
+      document.getElementById('pay-range-box').style.display='';
+    }
+  } else {
+    // 新增
+    document.getElementById('pay-type').value='薪資';togglePayType();
+    setDateBtn('pay-start-btn','pay-start-disp','pay-start-val','');
+    setDateBtn('pay-date-btn','pay-date-disp','pay-date-val','');
+    document.getElementById('pay-range-box').style.display='none';
+    const pp=document.getElementById('pay-purpose');if(pp)pp.value='';
+    const pa=document.getElementById('pay-amount');if(pa)pa.value='';
+    initPayEmpRows();calcPayTotal();
+  }
   openSheet('sheet-pay');
 }
 
@@ -1782,6 +1804,8 @@ function savePay(){
   const type=document.getElementById('pay-type').value;
   const status=document.getElementById('pay-status').value;
   const note=document.getElementById('pay-note').value.trim();
+  const eid=document.getElementById('pay-eid').value;
+
   if(type==='薪資'){
     const startDate=document.getElementById('pay-start-val').value;
     let endDate='';
@@ -1789,18 +1813,31 @@ function savePay(){
     const activeRows=_payEmpRows.filter(r=>r.days>0||r.leave>0||r.amount!==0);
     if(!activeRows.length)return alert('請確認員工上班天數');
     const total=activeRows.reduce((a,r)=>a+r.amount,0);
+    const isEdit=eid&&activeRows.length===1&&activeRows[0].empId.endsWith('_edit');
     const rows=[
       {label:'日期區間',value:startDate?(startDate+(endDate?' ～ '+endDate:'')):'未設定'},
-      {label:'員工數',value:`${activeRows.length} 人`},
+      ...(isEdit?[]:[{label:'員工數',value:`${activeRows.length} 人`}]),
       ...activeRows.map(r=>({label:r.name,value:`${r.days}天 - 請假${r.leave}天 = ${fmt(r.amount)}`})),
       {label:'合計',value:fmt(total)},{label:'狀態',value:status},
     ];
-    openSaveConfirmFn({title:'確認新增薪資請款',sub:'',rows,fn:()=>{
-      activeRows.forEach(r=>{
-        const item={id:genId(),type:'薪資',name:r.name,amount:r.amount,date:startDate||'',startDate,endDate,days:r.days,daily:r.daily,leave:r.leave||0,status,note,createdAt:new Date().toISOString()};
-        S.payments.unshift(item);dbUpsertPay(item);
-      });
-      save();closeSheet('sheet-pay');renderSec(curSec);
+    openSaveConfirmFn({title:isEdit?'確認編輯薪資請款':'確認新增薪資請款',sub:'',rows,fn:()=>{
+      if(isEdit){
+        // 編輯：更新原有紀錄
+        const r=activeRows[0];
+        const idx=S.payments.findIndex(p=>p.id===eid);
+        if(idx>=0){
+          S.payments[idx]={...S.payments[idx],amount:r.amount,days:r.days,daily:r.daily,leave:r.leave||0,startDate,endDate,date:startDate||'',status,note};
+          save();dbUpsertPay(S.payments[idx]);
+        }
+      } else {
+        // 新增：每人一筆
+        activeRows.forEach(r=>{
+          const item={id:genId(),type:'薪資',name:r.name,amount:r.amount,date:startDate||'',startDate,endDate,days:r.days,daily:r.daily,leave:r.leave||0,status,note,createdAt:new Date().toISOString()};
+          S.payments.unshift(item);dbUpsertPay(item);
+        });
+        save();
+      }
+      closeSheet('sheet-pay');renderSec(curSec);
     }});
   }else{
     const name=document.getElementById('pay-purpose')?.value.trim()||'零用金';
@@ -1809,13 +1846,19 @@ function savePay(){
     const date=document.getElementById('pay-date-val').value;
     const rows=[{label:'用途',value:name},{label:'金額',value:fmt(amount)},{label:'日期',value:date||'未設定'},{label:'狀態',value:status}];
     if(note)rows.push({label:'備註',value:note});
-    openSaveConfirmFn({title:'確認新增零用金',sub:'',rows,fn:()=>{
-      const item={id:genId(),type:'零用金',name,amount,date,startDate:'',endDate:'',days:0,daily:0,leave:0,status,note,createdAt:new Date().toISOString()};
-      S.payments.unshift(item);save();dbUpsertPay(item);closeSheet('sheet-pay');renderSec(curSec);
+    openSaveConfirmFn({title:eid?'確認編輯零用金':'確認新增零用金',sub:'',rows,fn:()=>{
+      const obj={type:'零用金',name,amount,date,startDate:'',endDate:'',days:0,daily:0,leave:0,status,note};
+      if(eid){
+        const idx=S.payments.findIndex(p=>p.id===eid);
+        if(idx>=0){S.payments[idx]={...S.payments[idx],...obj};save();dbUpsertPay(S.payments[idx]);}
+      } else {
+        const item={id:genId(),...obj,createdAt:new Date().toISOString()};
+        S.payments.unshift(item);save();dbUpsertPay(item);
+      }
+      closeSheet('sheet-pay');renderSec(curSec);
     }});
   }
 }
-
 
 // ===== EMPLOYEES =====
 function openEmpSheet(id){
