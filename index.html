@@ -279,28 +279,23 @@ canvas.elec-chart{width:100%;display:block;}
     <div style="flex:1;height:0.5px;background:rgba(255,255,255,0.12)"></div>
   </div>
 
-  <!-- Email OTP -->
+  <!-- Email Magic Link -->
   <div id="otp-step1" style="width:100%;max-width:280px;display:flex;flex-direction:column;gap:12px">
     <input type="email" id="otp-email" placeholder="輸入 Email" autocomplete="email"
       style="width:100%;padding:13px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:14px;outline:none;font-family:inherit;"
       onkeydown="if(event.key==='Enter')sendOTP()">
     <button onclick="sendOTP()" id="otp-send-btn"
       style="width:100%;padding:13px;border-radius:999px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:14px;font-weight:500;cursor:pointer;">
-      發送驗證碼
+      寄送登入連結
     </button>
   </div>
 
-  <!-- OTP verify step -->
-  <div id="otp-step2" style="width:100%;max-width:280px;display:none;flex-direction:column;gap:12px">
-    <div style="font-size:13px;color:rgba(255,255,255,0.5);text-align:center">驗證碼已寄送至 <span id="otp-sent-email" style="color:rgba(255,255,255,0.8)"></span></div>
-    <input type="text" id="otp-code" placeholder="輸入 6 位驗證碼" maxlength="6" inputmode="numeric"
-      style="width:100%;padding:13px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:18px;outline:none;font-family:monospace;text-align:center;letter-spacing:.2em;"
-      onkeydown="if(event.key==='Enter')verifyOTP()">
-    <button onclick="verifyOTP()" id="otp-verify-btn"
-      style="width:100%;padding:13px;border-radius:999px;border:none;background:#fff;color:#000;font-size:14px;font-weight:600;cursor:pointer;">
-      驗證登入
-    </button>
-    <button onclick="resetOTP()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:12px;cursor:pointer;">重新發送</button>
+  <!-- Sent confirmation -->
+  <div id="otp-step2" style="width:100%;max-width:280px;display:none;flex-direction:column;gap:12px;text-align:center">
+    <div style="font-size:28px">✉️</div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.6">登入連結已寄送至<br><span id="otp-sent-email" style="color:#fff;font-weight:600"></span></div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.4)">點擊信件中的連結即可登入</div>
+    <button onclick="resetOTP()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:12px;cursor:pointer;margin-top:8px">重新發送</button>
   </div>
 
   <div id="login-error" style="color:rgba(255,100,100,0.9);font-size:13px;display:none;text-align:center;max-width:280px"></div>
@@ -958,7 +953,7 @@ async function signOut(){
   showLoginScreen();
 }
 
-// ===== EMAIL OTP =====
+// ===== EMAIL MAGIC LINK =====
 async function sendOTP(){
   const email=document.getElementById('otp-email').value.trim();
   if(!email)return showLoginError('請輸入 Email');
@@ -966,72 +961,50 @@ async function sendOTP(){
   btn.textContent='發送中...';btn.disabled=true;
   showLoginError('');
   try{
-    const r=await fetch(`${SB_URL}/auth/v1/otp`,{
+    // First check whitelist before sending
+    const allowed=await checkEmailWhitelist(email);
+    if(!allowed){
+      showLoginError('此 Email 未獲授權，請聯繫管理員');
+      btn.textContent='寄送登入連結';btn.disabled=false;return;
+    }
+    const redirectTo=window.location.href.split('#')[0];
+    const r=await fetch(`${SB_URL}/auth/v1/magiclink`,{
       method:'POST',
       headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({email,create_user:false})
+      body:JSON.stringify({email,options:{emailRedirectTo:redirectTo}})
     });
     if(!r.ok){
       const e=await r.json();
-      // create_user:false → 只允許已存在的帳號
-      showLoginError(e.msg||e.message||'發送失敗，請確認 Email 是否已授權');
-      btn.textContent='發送驗證碼';btn.disabled=false;return;
+      showLoginError(e.msg||e.message||'發送失敗，請稍後再試');
+      btn.textContent='寄送登入連結';btn.disabled=false;return;
     }
     document.getElementById('otp-sent-email').textContent=email;
     document.getElementById('otp-step1').style.display='none';
     document.getElementById('otp-step2').style.display='flex';
-    setTimeout(()=>document.getElementById('otp-code').focus(),100);
   }catch(e){
     showLoginError('發送失敗，請稍後再試');
-    btn.textContent='發送驗證碼';btn.disabled=false;
+    btn.textContent='寄送登入連結';btn.disabled=false;
   }
 }
 
-async function verifyOTP(){
-  const email=document.getElementById('otp-email').value.trim();
-  const token=document.getElementById('otp-code').value.trim();
-  if(!token||token.length<6)return showLoginError('請輸入 6 位驗證碼');
-  const btn=document.getElementById('otp-verify-btn');
-  btn.textContent='驗證中...';btn.disabled=true;
-  showLoginError('');
+async function checkEmailWhitelist(email){
+  // Check allowed_users with anon key (before login)
   try{
-    const r=await fetch(`${SB_URL}/auth/v1/verify`,{
-      method:'POST',
-      headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({type:'email',email,token})
+    const r=await fetch(`${SB_URL}/rest/v1/allowed_users?email=eq.${encodeURIComponent(email)}&select=email`,{
+      headers:{'apikey':SB_KEY}
     });
-    if(!r.ok){
-      const e=await r.json();
-      showLoginError(e.msg||e.message||'驗證碼錯誤或已過期');
-      btn.textContent='驗證登入';btn.disabled=false;return;
-    }
+    if(!r.ok)return false;
     const data=await r.json();
-    _session={access_token:data.access_token,refresh_token:data.refresh_token,expires_at:Date.now()+(data.expires_in||3600)*1000,user:data.user};
-    // Check whitelist
-    const allowed=await checkAllowedUser(_session);
-    if(!allowed){
-      _session=null;
-      showLoginError('此帳號未獲授權，請聯繫管理員');
-      btn.textContent='驗證登入';btn.disabled=false;
-      resetOTP();return;
-    }
-    localStorage.setItem('sb_session',JSON.stringify(_session));
-    const userEl=document.getElementById('topbar-user');
-    if(userEl)userEl.textContent=_session.user?.email||'';
-    hideLoginScreen();
-    renderOverview();
-    load();
-  }catch(e){
-    showLoginError('驗證失敗，請稍後再試');
-    btn.textContent='驗證登入';btn.disabled=false;
-  }
+    return Array.isArray(data)&&data.length>0;
+  }catch(e){return false;}
 }
+
+async function verifyOTP(){/* not used - magic link */}
 
 function resetOTP(){
   document.getElementById('otp-step1').style.display='flex';
   document.getElementById('otp-step2').style.display='none';
-  document.getElementById('otp-code').value='';
-  document.getElementById('otp-send-btn').textContent='發送驗證碼';
+  document.getElementById('otp-send-btn').textContent='寄送登入連結';
   document.getElementById('otp-send-btn').disabled=false;
   showLoginError('');
 }
