@@ -925,12 +925,21 @@ async function checkAllowedUser(session){
   try{
     const email=session.user?.email;
     if(!email)return false;
+    // Try with user token first
     const r=await fetch(`${SB_URL}/rest/v1/allowed_users?email=eq.${encodeURIComponent(email)}&select=email`,{
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+session.access_token}
     });
-    if(!r.ok)return false;
-    const data=await r.json();
-    return Array.isArray(data)&&data.length>0;
+    if(r.ok){
+      const data=await r.json();
+      if(Array.isArray(data)&&data.length>0)return true;
+    }
+    // Fallback: try with anon key (if anon policy exists)
+    const r2=await fetch(`${SB_URL}/rest/v1/allowed_users?email=eq.${encodeURIComponent(email)}&select=email`,{
+      headers:{'apikey':SB_KEY}
+    });
+    if(!r2.ok)return false;
+    const data2=await r2.json();
+    return Array.isArray(data2)&&data2.length>0;
   }catch(e){return false;}
 }
 
@@ -967,11 +976,11 @@ async function sendOTP(){
       showLoginError('此 Email 未獲授權，請聯繫管理員');
       btn.textContent='寄送登入連結';btn.disabled=false;return;
     }
-    const redirectTo=window.location.href.split('#')[0];
+    const redirectTo='https://sher-holmes.github.io/PRODUCE.ERP/';
     const r=await fetch(`${SB_URL}/auth/v1/magiclink`,{
       method:'POST',
       headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({email,options:{emailRedirectTo:redirectTo}})
+      body:JSON.stringify({email,redirect_to:redirectTo})
     });
     if(!r.ok){
       const e=await r.json();
